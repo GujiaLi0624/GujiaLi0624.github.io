@@ -3,65 +3,123 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GujiaLi · DNA 3D 交互</title>
+    <title>GujiaLi · DNA 化学结构 3D</title>
     <style>
-        /* 全局重置，全屏展示 */
-        * {
-            margin: 0;
-            padding: 0;
-        }
+        /* ===== 全局重置 ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             overflow: hidden;
             background: #0a0f1e;
             font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
         }
-        #info {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 14px;
-            pointer-events: none;
-            user-select: none;
-            z-index: 10;
-            background: rgba(0,0,0,0.3);
-            padding: 8px 16px;
-            border-radius: 20px;
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.1);
+        /* ===== Three.js 画布容器 ===== */
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
         }
-        /* 个人简历覆盖层（可选，如果还想保留文字） */
+        /* ===== 覆盖层（你的个人简历信息） ===== */
         .overlay {
             position: absolute;
-            bottom: 40px;
+            top: 0;
             left: 0;
             width: 100%;
-            text-align: center;
-            pointer-events: none;
+            height: 100%;
+            pointer-events: none;          /* 让鼠标事件穿透到3D场景（按钮除外） */
             z-index: 10;
-            color: rgba(255,255,255,0.2);
-            font-size: 12px;
-            letter-spacing: 2px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: radial-gradient(ellipse at center, rgba(10,15,30,0.3) 0%, rgba(10,15,30,0.7) 100%);
         }
-        .overlay a {
-            color: rgba(255,255,255,0.3);
+        .overlay h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60cfff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 40px rgba(96,207,255,0.2);
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+        }
+        .overlay .sub {
+            font-size: 1.3rem;
+            color: rgba(255,255,255,0.7);
+            letter-spacing: 6px;
+            font-weight: 300;
+            background: rgba(0,0,0,0.2);
+            padding: 6px 24px;
+            border-radius: 30px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .overlay .bio {
+            margin-top: 20px;
+            font-size: 1.0rem;
+            color: rgba(255,255,255,0.5);
+            max-width: 500px;
+            line-height: 1.8;
+            letter-spacing: 1px;
+        }
+        .overlay .btn-cv {
+            margin-top: 30px;
+            pointer-events: auto;           /* 按钮可点击 */
+            padding: 12px 40px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(167,139,250,0.4);
+            border-radius: 50px;
+            color: #c4b5fd;
+            font-size: 1.0rem;
+            font-weight: 600;
             text-decoration: none;
-            pointer-events: auto;
-            border-bottom: 1px dashed rgba(255,255,255,0.2);
+            letter-spacing: 2px;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(167,139,250,0.05);
         }
-        .overlay a:hover {
-            color: #a78bfa;
+        .overlay .btn-cv:hover {
+            background: rgba(167,139,250,0.2);
+            border-color: #a78bfa;
+            box-shadow: 0 0 40px rgba(167,139,250,0.25);
+            transform: scale(1.05);
+            color: #fff;
+        }
+        .overlay .hint {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.15);
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
+        @media (max-width: 600px) {
+            .overlay h1 { font-size: 2.8rem; }
+            .overlay .sub { font-size: 1rem; }
+            .overlay .bio { font-size: 0.9rem; max-width: 90%; }
         }
     </style>
 </head>
 <body>
 
-    <div id="info">🖱️ 拖动旋转 · 滚轮缩放 · 悬停碱基吸附</div>
+    <!-- Three.js 会挂载到这个容器中 -->
+    <div id="canvas-container"></div>
+
+    <!-- 你的个人信息覆盖层 -->
     <div class="overlay">
-        🧬 GujiaLi · 分子生物信息学 &nbsp;|&nbsp; <a href="#">📄 简历 (即将上传)</a>
+        <h1>GujiaLi</h1>
+        <div class="sub">🧪 分子生物信息学 · 结构化学</div>
+        <div class="bio">
+            从中心法则到三维化学 · 探索生命的分子语言
+        </div>
+        <a href="#" class="btn-cv">📄 查看我的简历</a>
+        <div class="hint">🖱️ 拖拽旋转 · 滚轮缩放 · 悬停碱基吸附</div>
     </div>
 
-    <!-- 使用 Import Map 加载 Three.js -->
+    <!-- Import Map: 加载 Three.js -->
     <script type="importmap">
         {
             "imports": {
@@ -71,12 +129,11 @@
         }
     </script>
 
-    <!-- 加载独立的 DNA 模块 -->
+    <!-- 引入我们的 DNA 引擎 -->
     <script type="module">
         import { initDNA } from './dna.js';
-        // 启动场景，传入挂载的 DOM 元素（这里直接使用 body，自动添加 canvas）
-        initDNA();
+        // 传入容器ID，初始化场景
+        initDNA('canvas-container');
     </script>
-
 </body>
 </html>
