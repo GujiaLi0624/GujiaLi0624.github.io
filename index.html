@@ -1,403 +1,408 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LGJ · DNA 分子模型</title>
+    <title>LGJ · Bioinformatics</title>
     <style>
-        /* 页面内容样式（简洁，让模型全屏展示） */
-        body {
+        /* ========== 重置 ========== */
+        * {
             margin: 0;
-            overflow: hidden;
-            font-family: 'Segoe UI', sans-serif;
+            padding: 0;
+            box-sizing: border-box;
         }
-        /* 信息覆盖层（可选） */
-        .info {
-            position: absolute;
-            bottom: 30px;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 14px;
-            pointer-events: none;
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+            background: #0a0f1e;
+            color: #e0e8f0;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ========== 主容器（浮在特效之上） ========== */
+        .app {
+            position: relative;
             z-index: 10;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 30px 60px;
+            min-height: 100vh;
+            pointer-events: none;  /* 让鼠标穿透背景，但内部元素可交互 */
+        }
+        .app * {
+            pointer-events: auto;  /* 内部元素正常交互 */
+        }
+
+        /* ========== 导航栏 ========== */
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            padding: 12px 0 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60cfff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
-        .info a {
-            color: #a78bfa;
-            pointer-events: auto;
+        .logo small {
+            font-size: 0.9rem;
+            -webkit-text-fill-color: rgba(255, 255, 255, 0.4);
+            background: none;
+        }
+        .nav-links {
+            display: flex;
+            gap: 28px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            flex-wrap: wrap;
+        }
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
+            transition: 0.25s;
+            border-bottom: 2px solid transparent;
+            padding-bottom: 4px;
         }
-        /* 右上角个人标识（可选） */
-        .badge {
-            position: absolute;
-            top: 20px;
-            right: 30px;
-            color: rgba(255,255,255,0.3);
-            font-size: 18px;
-            z-index: 10;
-            pointer-events: none;
-            background: rgba(0,0,0,0.3);
-            padding: 8px 18px;
-            border-radius: 30px;
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.05);
+        .nav-links a:hover {
+            color: #a78bfa;
+            border-bottom-color: #a78bfa;
+        }
+
+        /* ========== 两栏布局 ========== */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        /* ========== 侧边栏 ========== */
+        .sidebar {
+            background: rgba(20, 30, 50, 0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 28px 22px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            height: fit-content;
+        }
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a6cf7, #a78bfa);
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.2rem;
+            font-weight: 300;
+            color: #fff;
+            box-shadow: 0 0 30px rgba(167, 139, 250, 0.3);
+        }
+        .sidebar h2 {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .sidebar .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+            margin-bottom: 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 16px;
+        }
+        .sidebar .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            color: rgba(255, 255, 255, 0.75);
+        }
+        .sidebar .info-item .emoji {
+            width: 24px;
+            text-align: center;
+        }
+        .sidebar .tagline {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .btn-cv {
+            display: block;
+            margin: 18px auto 0;
+            padding: 10px 24px;
+            background: rgba(167, 139, 250, 0.15);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 40px;
+            color: #c4b5fd;
+            text-align: center;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: 0.3s;
+            width: fit-content;
+        }
+        .btn-cv:hover {
+            background: rgba(167, 139, 250, 0.3);
+            box-shadow: 0 0 30px rgba(167, 139, 250, 0.15);
+            transform: scale(1.02);
+        }
+
+        /* ========== 内容模块 ========== */
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+        .module {
+            background: rgba(16, 24, 42, 0.5);
+            backdrop-filter: blur(8px);
+            border-radius: 18px;
+            padding: 24px 28px 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: 0.2s;
+        }
+        .module:hover {
+            border-color: rgba(167, 139, 250, 0.15);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+        .module-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #c8d6e5;
+        }
+        .module-title .icon {
+            font-size: 1.4rem;
+        }
+        .module-desc {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.9rem;
+            margin-bottom: 14px;
+        }
+        .item-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 14px;
+        }
+        .item-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 14px 16px;
+            transition: 0.2s;
+            border-left: 3px solid rgba(167, 139, 250, 0.2);
+            text-decoration: none;
+            color: #d0d8e0;
+            display: block;
+        }
+        .item-card:hover {
+            background: rgba(167, 139, 250, 0.08);
+            border-left-color: #a78bfa;
+            transform: translateX(4px);
+        }
+        .item-card .repo-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #e8edf5;
+        }
+        .item-card .repo-desc {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .item-card .repo-meta {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.25);
+            margin-top: 8px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .home-content {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.8;
+        }
+        .home-content strong {
+            color: #c4b5fd;
+        }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                max-width: 400px;
+                margin: 0 auto;
+            }
+        }
+        @media (max-width: 500px) {
+            .navbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .nav-links {
+                justify-content: center;
+                gap: 16px;
+                font-size: 0.85rem;
+            }
+            .app {
+                padding: 12px 16px;
+            }
+            .item-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- 装饰层 -->
-    <div class="badge">🧬 LGJ · Bioinformatics</div>
-    <div class="info">拖拽旋转 · 滚轮缩放 · 自动旋转</div>
+    <!-- ===== 主内容容器 ===== -->
+    <div class="app">
 
-    <!-- 引入 Three.js 核心库和扩展 -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/"
-            }
-        }
-    </script>
+        <!-- 导航栏 -->
+        <header class="navbar">
+            <div class="logo">🧬 LGJ <small>· Bioinfo</small></div>
+            <nav class="nav-links">
+                <a href="#">🏠 Home</a>
+                <a href="#">📚 Resources</a>
+                <a href="#">🔧 Tools</a>
+                <a href="#">📝 Notes</a>
+            </nav>
+        </header>
 
-    <script type="module">
-        // ============================================================
-        // 使用 ES Module 方式引入 Three.js 和 OrbitControls
-        // ============================================================
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        <!-- 主体 -->
+        <div class="main-grid">
 
-        // ----- 1. 场景、相机、渲染器 -----
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0f1e); // 深空蓝
+            <!-- 侧边栏 -->
+            <aside class="sidebar">
+                <div class="avatar">👤</div>
+                <h2>LGJ</h2>
+                <div class="subtitle">🧬 Bioinformatics · Systems Medicine</div>
+                <div class="info-item"><span class="emoji">🎓</span> NJMU · Clinical Medicine</div>
+                <div class="info-item"><span class="emoji">📧</span> ligujiai@163.com</div>
+                <div class="info-item"><span class="emoji">📍</span> Nantong · China</div>
+                <div class="tagline">“Exploring the central dogma from genes to complex systems.”</div>
+                <a href="#" class="btn-cv">📄 View My CV</a>
+            </aside>
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(8, 5, 12);
-        camera.lookAt(0, 0, 0);
+            <!-- 内容区 -->
+            <main class="content">
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
-        document.body.appendChild(renderer.domElement);
+                <!-- 模块：Home -->
+                <section class="module">
+                    <div class="module-title"><span class="icon">🏠</span> Home</div>
+                    <div class="home-content">
+                        <p>Welcome to my personal bioinformatics hub. I am <strong>LGJ</strong>, a clinical medicine undergraduate at <strong>Nanjing Medical University (NJMU)</strong> with a strong passion for computational biology, single-cell genomics, and machine learning in medicine.</p>
+                        <p style="margin-top:12px;">This site collects my curated resources, tools, and study notes. Feel free to explore and reach out if you'd like to collaborate or discuss.</p>
+                    </div>
+                </section>
 
-        // ----- 2. 控制器（支持拖拽、缩放、自动旋转） -----
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 1.5;
-        controls.enableZoom = true;
-        controls.target.set(0, 0, 0);
+                <!-- 模块：Resources -->
+                <section class="module">
+                    <div class="module-title"><span class="icon">📚</span> Resources</div>
+                    <div class="module-desc">Curated learning materials, papers, and datasets</div>
+                    <div class="item-grid">
+                        <a href="#" class="item-card">
+                            <div class="repo-name">crazyhottommy/scRNAseq-analysis-notes</div>
+                            <div class="repo-desc">Comprehensive scRNA-seq analysis notes.</div>
+                            <div class="repo-meta">⭐ 1.2k · 🐍</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">theislab/single-cell-tutorial</div>
+                            <div class="repo-desc">Official Scanpy tutorial.</div>
+                            <div class="repo-meta">⭐ 800 · 📘</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">pliang279/awesome-multimodal-ml</div>
+                            <div class="repo-desc">Must-read papers in multimodal ML.</div>
+                            <div class="repo-meta">⭐ 3.2k · 📄</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">beamandrew/medical-data</div>
+                            <div class="repo-desc">Public medical datasets.</div>
+                            <div class="repo-meta">⭐ 2.6k · 🏥</div>
+                        </a>
+                    </div>
+                </section>
 
-        // ----- 3. 灯光 -----
-        const ambientLight = new THREE.AmbientLight(0x404060);
-        scene.add(ambientLight);
+                <!-- 模块：Tools -->
+                <section class="module">
+                    <div class="module-title"><span class="icon">🔧</span> Tools</div>
+                    <div class="module-desc">Software, frameworks, and models I use</div>
+                    <div class="item-grid">
+                        <a href="#" class="item-card">
+                            <div class="repo-name">satijalab/seurat</div>
+                            <div class="repo-desc">R toolkit for single-cell genomics.</div>
+                            <div class="repo-meta">⭐ 2.1k · 📊</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">bowang-lab/scGPT</div>
+                            <div class="repo-desc">GPT‑based foundation model for single cells.</div>
+                            <div class="repo-meta">⭐ 560 · 🤖</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">mahmoodlab/UNI</div>
+                            <div class="repo-desc">Universal histopathology foundation model.</div>
+                            <div class="repo-meta">⭐ 480 · 🧠</div>
+                        </a>
+                    </div>
+                </section>
 
-        const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
-        dirLight.position.set(5, 10, 7);
-        dirLight.castShadow = true;
-        scene.add(dirLight);
+                <!-- 模块：Notes -->
+                <section class="module">
+                    <div class="module-title"><span class="icon">📝</span> Notes</div>
+                    <div class="module-desc">My personal study notes and workflows</div>
+                    <div class="item-grid">
+                        <a href="#" class="item-card">
+                            <div class="repo-name">scverse/scanpy</div>
+                            <div class="repo-desc">Scalable single-cell analysis.</div>
+                            <div class="repo-meta">⭐ 1.8k · 🐍</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">vib-singlecell-nf/vsn-pipelines</div>
+                            <div class="repo-desc">Reproducible Nextflow pipelines.</div>
+                            <div class="repo-meta">⭐ 210 · 🧬</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">shap/shap</div>
+                            <div class="repo-desc">Interpretability with SHAP.</div>
+                            <div class="repo-meta">⭐ 21k · 🐍</div>
+                        </a>
+                    </div>
+                </section>
 
-        const fillLight = new THREE.DirectionalLight(0x4488ff, 0.6);
-        fillLight.position.set(-5, 0, 10);
-        scene.add(fillLight);
+            </main>
+        </div>
+    </div>
 
-        const backLight = new THREE.DirectionalLight(0xaa88ff, 0.5);
-        backLight.position.set(0, -5, -10);
-        scene.add(backLight);
+    <!-- ===== 引入 Three.js 和特效 ===== -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="dna-story.js"></script>
 
-        // ----- 4. 星星背景（简单粒子） -----
-        function addStars() {
-            const starGeo = new THREE.BufferGeometry();
-            const starCount = 1500;
-            const pos = new Float32Array(starCount * 3);
-            for (let i = 0; i < starCount * 3; i += 3) {
-                const r = 30 + Math.random() * 30;
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(2 * Math.random() - 1);
-                pos[i] = r * Math.sin(phi) * Math.cos(theta);
-                pos[i+1] = r * Math.sin(phi) * Math.sin(theta);
-                pos[i+2] = r * Math.cos(phi);
-            }
-            starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-            const starMat = new THREE.PointsMaterial({
-                color: 0x88aadd,
-                size: 0.12,
-                transparent: true,
-                opacity: 0.7
-            });
-            const stars = new THREE.Points(starGeo, starMat);
-            scene.add(stars);
-            return stars;
-        }
-        const starField = addStars();
-
-        // ----- 5. 构建 DNA 球棍模型 -----
-        // 参数
-        const radius = 2.2;          // 螺旋半径
-        const height = 8.0;          // 总高度
-        const turns = 3.0;           // 旋转圈数
-        const numPairs = 24;         // 碱基对数量
-
-        // 颜色定义（碱基）
-        const baseColors = {
-            A: 0xff6b6b,
-            T: 0x4ecdc4,
-            G: 0xffe66d,
-            C: 0xa29bfe
-        };
-        const letters = ['A', 'T', 'G', 'C'];
-
-        // 主容器
-        const dnaGroup = new THREE.Group();
-        scene.add(dnaGroup);
-
-        // 工具函数：创建圆柱体（化学键）
-        function createBond(from, to, color = 0x888888, radius = 0.06) {
-            const start = new THREE.Vector3(from.x, from.y, from.z);
-            const end = new THREE.Vector3(to.x, to.y, to.z);
-            const direction = new THREE.Vector3().subVectors(end, start);
-            const length = direction.length();
-            if (length < 0.001) return null;
-            const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-            const geo = new THREE.CylinderGeometry(radius, radius, length, 6);
-            const mat = new THREE.MeshStandardMaterial({
-                color: color,
-                roughness: 0.4,
-                metalness: 0.3,
-                transparent: true,
-                opacity: 0.7
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.copy(mid);
-            // 旋转使其指向方向
-            const up = new THREE.Vector3(0, 1, 0);
-            const quat = new THREE.Quaternion().setFromUnitVectors(up, direction.clone().normalize());
-            mesh.quaternion.copy(quat);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            return mesh;
-        }
-
-        // 存储所有碱基位置以便画氢键
-        const basePositions = [];
-
-        // 循环生成碱基对
-        for (let i = 0; i < numPairs; i++) {
-            const t = i / numPairs;
-            const y = -height/2 + t * height;
-            const angle = t * Math.PI * 2 * turns;
-
-            // 两条链的偏移角度
-            const offset1 = 0;
-            const offset2 = Math.PI;
-
-            // 链1 坐标
-            const x1 = radius * Math.cos(angle + offset1);
-            const z1 = radius * Math.sin(angle + offset1);
-            const pos1 = new THREE.Vector3(x1, y, z1);
-
-            // 链2 坐标
-            const x2 = radius * Math.cos(angle + offset2);
-            const z2 = radius * Math.sin(angle + offset2);
-            const pos2 = new THREE.Vector3(x2, y, z2);
-
-            // 随机碱基配对（但确保互补）
-            const idx = Math.floor(Math.random() * 4);
-            const base1 = letters[idx];
-            const base2 = letters[(idx + 2) % 4]; // 互补
-
-            // ---- 创建骨架球（代表磷酸-脱氧核糖） ----
-            const sphereMat1 = new THREE.MeshStandardMaterial({
-                color: 0x3a6ea5,
-                roughness: 0.3,
-                metalness: 0.1,
-                emissive: 0x1a3a5a,
-                emissiveIntensity: 0.2
-            });
-            const sphere1 = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), sphereMat1);
-            sphere1.position.copy(pos1);
-            sphere1.castShadow = true;
-            dnaGroup.add(sphere1);
-
-            const sphereMat2 = new THREE.MeshStandardMaterial({
-                color: 0x3a6ea5,
-                roughness: 0.3,
-                metalness: 0.1,
-                emissive: 0x1a3a5a,
-                emissiveIntensity: 0.2
-            });
-            const sphere2 = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), sphereMat2);
-            sphere2.position.copy(pos2);
-            sphere2.castShadow = true;
-            dnaGroup.add(sphere2);
-
-            // ---- 创建碱基（扁平长方体，代表碱基环） ----
-            const color1 = baseColors[base1];
-            const color2 = baseColors[base2];
-            const baseMat1 = new THREE.MeshStandardMaterial({
-                color: color1,
-                roughness: 0.4,
-                metalness: 0.1,
-                emissive: color1,
-                emissiveIntensity: 0.1
-            });
-            const baseMat2 = new THREE.MeshStandardMaterial({
-                color: color2,
-                roughness: 0.4,
-                metalness: 0.1,
-                emissive: color2,
-                emissiveIntensity: 0.1
-            });
-
-            // 碱基尺寸（扁平的矩形）
-            const baseWidth = 0.4;
-            const baseHeight = 0.1;
-            const baseDepth = 0.3;
-
-            // 碱基1（在链1上）
-            const baseMesh1 = new THREE.Mesh(new THREE.BoxGeometry(baseWidth, baseHeight, baseDepth), baseMat1);
-            // 位置在骨架球旁边（向链2方向偏移）
-            const dir1 = new THREE.Vector3().subVectors(pos2, pos1).normalize();
-            const offsetDist = 0.45;
-            const pos1_base = pos1.clone().add(dir1.clone().multiplyScalar(offsetDist));
-            baseMesh1.position.copy(pos1_base);
-            // 旋转使其指向链2方向
-            baseMesh1.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0), dir1);
-            baseMesh1.castShadow = true;
-            dnaGroup.add(baseMesh1);
-
-            // 碱基2（在链2上）
-            const baseMesh2 = new THREE.Mesh(new THREE.BoxGeometry(baseWidth, baseHeight, baseDepth), baseMat2);
-            const dir2 = new THREE.Vector3().subVectors(pos1, pos2).normalize();
-            const pos2_base = pos2.clone().add(dir2.clone().multiplyScalar(offsetDist));
-            baseMesh2.position.copy(pos2_base);
-            baseMesh2.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0), dir2);
-            baseMesh2.castShadow = true;
-            dnaGroup.add(baseMesh2);
-
-            // 在碱基上添加字母标签（小精灵） - 可选
-            function addLabel(text, pos, color = '#ffffff') {
-                const canvas = document.createElement('canvas');
-                canvas.width = 64;
-                canvas.height = 64;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = 'rgba(0,0,0,0)';
-                ctx.fillRect(0, 0, 64, 64);
-                ctx.font = 'Bold 40px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = color;
-                ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                ctx.shadowBlur = 10;
-                ctx.fillText(text, 32, 34);
-                const texture = new THREE.CanvasTexture(canvas);
-                const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
-                const sprite = new THREE.Sprite(mat);
-                sprite.position.copy(pos);
-                sprite.scale.set(0.5, 0.5, 1);
-                return sprite;
-            }
-
-            // 加标签（略微偏移）
-            const labelPos1 = pos1_base.clone().add(new THREE.Vector3(0, 0.3, 0));
-            const labelPos2 = pos2_base.clone().add(new THREE.Vector3(0, 0.3, 0));
-            dnaGroup.add(addLabel(base1, labelPos1, '#fff'));
-            dnaGroup.add(addLabel(base2, labelPos2, '#fff'));
-
-            // ---- 创建氢键（虚线连接两个碱基） ----
-            // 在两条碱基的中心之间画一条半透明的细圆柱
-            const mid = new THREE.Vector3().addVectors(pos1_base, pos2_base).multiplyScalar(0.5);
-            const bondDir = new THREE.Vector3().subVectors(pos2_base, pos1_base);
-            const bondLen = bondDir.length();
-            if (bondLen > 0.1) {
-                const bondMat = new THREE.MeshStandardMaterial({
-                    color: 0x88aaff,
-                    emissive: 0x4466aa,
-                    emissiveIntensity: 0.2,
-                    transparent: true,
-                    opacity: 0.3,
-                    roughness: 0.2,
-                    metalness: 0.1
-                });
-                const bondGeo = new THREE.CylinderGeometry(0.03, 0.03, bondLen, 4);
-                const bond = new THREE.Mesh(bondGeo, bondMat);
-                bond.position.copy(mid);
-                const upDir = new THREE.Vector3(0, 1, 0);
-                const quatBond = new THREE.Quaternion().setFromUnitVectors(upDir, bondDir.clone().normalize());
-                bond.quaternion.copy(quatBond);
-                bond.castShadow = true;
-                dnaGroup.add(bond);
-            }
-
-            // 存储位置用于骨架连接
-            basePositions.push({ pos1, pos2, y });
-        }
-
-        // ---- 创建骨架连接（磷酸二酯键） ----
-        // 对每条链，按顺序连接相邻的骨架球
-        function connectBackbone(positions, color = 0x88aaff) {
-            for (let i = 0; i < positions.length - 1; i++) {
-                const p1 = positions[i];
-                const p2 = positions[i+1];
-                const bond = createBond(p1, p2, color, 0.08);
-                if (bond) dnaGroup.add(bond);
-            }
-        }
-
-        // 提取链1和链2的所有位置（按y排序）
-        const chain1 = basePositions.map(p => p.pos1).sort((a, b) => a.y - b.y);
-        const chain2 = basePositions.map(p => p.pos2).sort((a, b) => a.y - b.y);
-
-        connectBackbone(chain1, 0x88ccff);
-        connectBackbone(chain2, 0x88ccff);
-
-        // 也可以添加一些辅助的螺旋线（装饰）
-        // 略
-
-        // 添加一个微弱的底部光晕
-        const glowMat = new THREE.MeshBasicMaterial({
-            color: 0x4466aa,
-            transparent: true,
-            opacity: 0.05,
-            side: THREE.BackSide
-        });
-        const glowSphere = new THREE.Mesh(new THREE.SphereGeometry(4, 32, 32), glowMat);
-        glowSphere.position.set(0, 0, 0);
-        dnaGroup.add(glowSphere);
-
-        // ----- 6. 动画循环 -----
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // 更新控制器（自动旋转启用）
-            controls.update();
-
-            // 星星缓慢自转
-            starField.rotation.y += 0.0001;
-
-            renderer.render(scene, camera);
-        }
-
-        animate();
-
-        // ----- 7. 窗口大小自适应 -----
-        window.addEventListener('resize', onWindowResize, false);
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // 简单的加载完成提示（可选）
-        console.log('DNA 球棍模型已加载！');
-    </script>
 </body>
 </html>
