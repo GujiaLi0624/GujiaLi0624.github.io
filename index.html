@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LGJ · Bioinformatics</title>
     <style>
+        /* ========== 全局重置 ========== */
         * {
             margin: 0;
             padding: 0;
@@ -17,6 +18,8 @@
             line-height: 1.6;
             overflow-x: hidden;
         }
+
+        /* ========== 主容器（浮在特效之上） ========== */
         .app {
             position: relative;
             z-index: 10;
@@ -24,25 +27,380 @@
             margin: 0 auto;
             padding: 20px 30px 60px;
             min-height: 100vh;
-            pointer-events: none;
+            pointer-events: none;  /* 让鼠标穿透背景，但内部可点 */
         }
         .app * {
-            pointer-events: auto;
+            pointer-events: auto;  /* 内部元素可交互 */
         }
-        /* Navbar, Sidebar, Content 样式保持不变（略）—— 沿用之前的样式，此处省略以节省空间，实际部署时请保留完整样式 */
-        /* 实际使用时将下方样式补全，或直接复用之前 index.html 中的样式 */
+
+        /* ========== 导航栏 ========== */
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            padding: 12px 0 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60cfff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+        .logo small {
+            font-size: 0.9rem;
+            -webkit-text-fill-color: rgba(255, 255, 255, 0.4);
+            background: none;
+        }
+        .nav-links {
+            display: flex;
+            gap: 28px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            flex-wrap: wrap;
+        }
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: 0.25s;
+            border-bottom: 2px solid transparent;
+            padding-bottom: 4px;
+        }
+        .nav-links a:hover {
+            color: #a78bfa;
+            border-bottom-color: #a78bfa;
+        }
+
+        /* ========== 两栏布局 ========== */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        /* ========== 侧边栏 ========== */
+        .sidebar {
+            background: rgba(20, 30, 50, 0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 28px 22px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            height: fit-content;
+        }
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a6cf7, #a78bfa);
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.2rem;
+            font-weight: 300;
+            color: #fff;
+            box-shadow: 0 0 30px rgba(167, 139, 250, 0.3);
+        }
+        .sidebar h2 {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .sidebar .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+            margin-bottom: 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 16px;
+        }
+        .sidebar .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            color: rgba(255, 255, 255, 0.75);
+        }
+        .sidebar .info-item .emoji {
+            width: 24px;
+            text-align: center;
+        }
+        .sidebar .tagline {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .btn-cv {
+            display: block;
+            margin: 18px auto 0;
+            padding: 10px 24px;
+            background: rgba(167, 139, 250, 0.15);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 40px;
+            color: #c4b5fd;
+            text-align: center;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: 0.3s;
+            width: fit-content;
+        }
+        .btn-cv:hover {
+            background: rgba(167, 139, 250, 0.3);
+            box-shadow: 0 0 30px rgba(167, 139, 250, 0.15);
+            transform: scale(1.02);
+        }
+
+        /* ========== 右侧内容模块 ========== */
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+        .module {
+            background: rgba(16, 24, 42, 0.5);
+            backdrop-filter: blur(8px);
+            border-radius: 18px;
+            padding: 24px 28px 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: 0.2s;
+        }
+        .module:hover {
+            border-color: rgba(167, 139, 250, 0.15);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+        .module-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #c8d6e5;
+        }
+        .module-title .icon {
+            font-size: 1.4rem;
+        }
+        .module-desc {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.9rem;
+            margin-bottom: 14px;
+        }
+        .item-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 14px;
+        }
+        .item-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 14px 16px;
+            transition: 0.2s;
+            border-left: 3px solid rgba(167, 139, 250, 0.2);
+            text-decoration: none;
+            color: #d0d8e0;
+            display: block;
+        }
+        .item-card:hover {
+            background: rgba(167, 139, 250, 0.08);
+            border-left-color: #a78bfa;
+            transform: translateX(4px);
+        }
+        .item-card .repo-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #e8edf5;
+        }
+        .item-card .repo-desc {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .item-card .repo-meta {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.25);
+            margin-top: 8px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .home-content {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.8;
+        }
+        .home-content strong {
+            color: #c4b5fd;
+        }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                max-width: 400px;
+                margin: 0 auto;
+            }
+        }
+        @media (max-width: 500px) {
+            .navbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .nav-links {
+                justify-content: center;
+                gap: 16px;
+                font-size: 0.85rem;
+            }
+            .app {
+                padding: 12px 16px;
+            }
+            .item-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
 
+    <!-- ===== 主内容容器 ===== -->
     <div class="app">
-        <!-- 导航、侧边栏、内容模块（与之前完全相同，省略） -->
-        <!-- 注意：实际部署时请将完整的 HTML 结构粘贴过来，包括导航、侧边栏、四个模块 -->
-        <!-- 但为了测试特效，我们至少保留一个容器 -->
-        <div style="color:white;text-align:center;padding:50px;">LGJ · Bioinformatics</div>
+
+        <!-- 导航栏 -->
+        <header class="navbar">
+            <div class="logo">🧬 LGJ <small>· Bioinfo</small></div>
+            <nav class="nav-links">
+                <a href="#">🏠 Home</a>
+                <a href="#">📚 Resources</a>
+                <a href="#">🔧 Tools</a>
+                <a href="#">📝 Notes</a>
+            </nav>
+        </header>
+
+        <!-- 主体 -->
+        <div class="main-grid">
+
+            <!-- 侧边栏 -->
+            <aside class="sidebar">
+                <div class="avatar">👤</div>
+                <h2>LGJ</h2>
+                <div class="subtitle">🧬 Bioinformatics · Systems Medicine</div>
+                <div class="info-item"><span class="emoji">🎓</span> NJMU · Clinical Medicine</div>
+                <div class="info-item"><span class="emoji">📧</span> ligujiai@163.com</div>
+                <div class="info-item"><span class="emoji">📍</span> Nantong · China</div>
+                <div class="tagline">“Exploring the central dogma from genes to complex systems.”</div>
+                <a href="#" class="btn-cv">📄 View My CV</a>
+            </aside>
+
+            <!-- 内容区 -->
+            <main class="content">
+
+                <!-- 模块：Home -->
+                <section class="module">
+                    <div class="module-title"><span class="icon">🏠</span> Home</div>
+                    <div class="home-content">
+                        <p>Welcome to my personal bioinformatics hub. I am <strong>LGJ</strong>, a clinical medicine undergraduate at <strong>Nanjing Medical University (NJMU)</strong> with a strong passion for computational biology, single-cell genomics, and machine learning in medicine.</p>
+                        <p style="margin-top:12px;">This site collects my curated resources, tools, and study notes. Feel free to explore and reach out if you'd like to collaborate or discuss.</p>
+                    </div>
+                </section>
+
+                <!-- 模块：Resources -->
+                <section class="module">
+                    <div class="module-title"><span class="icon">📚</span> Resources</div>
+                    <div class="module-desc">Curated learning materials, papers, and datasets</div>
+                    <div class="item-grid">
+                        <a href="#" class="item-card">
+                            <div class="repo-name">crazyhottommy/scRNAseq-analysis-notes</div>
+                            <div class="repo-desc">Comprehensive scRNA-seq analysis notes.</div>
+                            <div class="repo-meta">⭐ 1.2k · 🐍</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">theislab/single-cell-tutorial</div>
+                            <div class="repo-desc">Official Scanpy tutorial.</div>
+                            <div class="repo-meta">⭐ 800 · 📘</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">pliang279/awesome-multimodal-ml</div>
+                            <div class="repo-desc">Must-read papers in multimodal ML.</div>
+                            <div class="repo-meta">⭐ 3.2k · 📄</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">beamandrew/medical-data</div>
+                            <div class="repo-desc">Public medical datasets.</div>
+                            <div class="repo-meta">⭐ 2.6k · 🏥</div>
+                        </a>
+                    </div>
+                </section>
+
+                <!-- 模块：Tools -->
+                <section class="module">
+                    <div class="module-title"><span class="icon">🔧</span> Tools</div>
+                    <div class="module-desc">Software, frameworks, and models I use</div>
+                    <div class="item-grid">
+                        <a href="#" class="item-card">
+                            <div class="repo-name">satijalab/seurat</div>
+                            <div class="repo-desc">R toolkit for single-cell genomics.</div>
+                            <div class="repo-meta">⭐ 2.1k · 📊</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">bowang-lab/scGPT</div>
+                            <div class="repo-desc">GPT‑based foundation model for single cells.</div>
+                            <div class="repo-meta">⭐ 560 · 🤖</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">mahmoodlab/UNI</div>
+                            <div class="repo-desc">Universal histopathology foundation model.</div>
+                            <div class="repo-meta">⭐ 480 · 🧠</div>
+                        </a>
+                    </div>
+                </section>
+
+                <!-- 模块：Notes -->
+                <section class="module">
+                    <div class="module-title"><span class="icon">📝</span> Notes</div>
+                    <div class="module-desc">My personal study notes and workflows</div>
+                    <div class="item-grid">
+                        <a href="#" class="item-card">
+                            <div class="repo-name">scverse/scanpy</div>
+                            <div class="repo-desc">Scalable single-cell analysis.</div>
+                            <div class="repo-meta">⭐ 1.8k · 🐍</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">vib-singlecell-nf/vsn-pipelines</div>
+                            <div class="repo-desc">Reproducible Nextflow pipelines.</div>
+                            <div class="repo-meta">⭐ 210 · 🧬</div>
+                        </a>
+                        <a href="#" class="item-card">
+                            <div class="repo-name">shap/shap</div>
+                            <div class="repo-desc">Interpretability with SHAP.</div>
+                            <div class="repo-meta">⭐ 21k · 🐍</div>
+                        </a>
+                    </div>
+                </section>
+
+            </main>
+        </div>
     </div>
 
-    <!-- 引入 Three.js 和新特效 -->
+    <!-- 引入 Three.js 和特效 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="dna-story.js"></script>
 
