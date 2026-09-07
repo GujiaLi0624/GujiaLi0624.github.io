@@ -1,68 +1,67 @@
 // ============================================================
-// dna-3d-process.js – 3D 无限延伸DNA + 中心法则动态演示
-// 依赖：Three.js (r128)
+// dna-story.js – 中心法则 3D 分阶段叙事动画
+// 阶段：散落 → 组装DNA → 解旋+转录 → 翻译 → 蛋白质折叠
 // ============================================================
 
 (function() {
-    // ----- 1. 场景、相机、渲染器 -----
+    // ----- 1. 场景、相机、渲染器（全屏） -----
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
-    scene.fog = new THREE.Fog(0x0a0f1e, 25, 45);
 
-    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(10, 6, 18);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(8, 5, 18);
     camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.domElement.style.position = 'fixed';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.zIndex = '0';
+    renderer.domElement.style.pointerEvents = 'none';
     document.body.prepend(renderer.domElement);
 
     // ----- 2. 灯光 -----
     const ambient = new THREE.AmbientLight(0x404060);
     scene.add(ambient);
-
     const mainLight = new THREE.DirectionalLight(0xffeedd, 1.0);
-    mainLight.position.set(5, 12, 8);
+    mainLight.position.set(5, 10, 7);
     mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 512;
-    mainLight.shadow.mapSize.height = 512;
     scene.add(mainLight);
-
     const fillLight = new THREE.DirectionalLight(0x4488ff, 0.5);
     fillLight.position.set(-5, 0, 10);
     scene.add(fillLight);
-
-    const rimLight = new THREE.DirectionalLight(0xaa88ff, 0.6);
-    rimLight.position.set(0, -5, -10);
-    scene.add(rimLight);
-
-    const backLight = new THREE.PointLight(0x6688ff, 0.3, 30);
-    backLight.position.set(0, 0, -15);
+    const backLight = new THREE.DirectionalLight(0xaa88ff, 0.4);
+    backLight.position.set(0, -3, -10);
     scene.add(backLight);
 
-    // ----- 3. 辅助装饰：星空粒子背景 -----
-    const starGeo = new THREE.BufferGeometry();
-    const starCount = 1200;
-    const starPos = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount * 3; i += 3) {
-        const r = 40 + Math.random() * 40;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        starPos[i] = r * Math.sin(phi) * Math.cos(theta);
-        starPos[i+1] = r * Math.sin(phi) * Math.sin(theta);
-        starPos[i+2] = r * Math.cos(phi);
+    // ----- 3. 工具：创建 Sprite 标签（清晰字体） -----
+    function makeLabel(text, color, size = 0.8) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 512, 128);
+        ctx.font = 'Bold 48px Arial, Helvetica, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,0,0,0.9)';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = color || '#ffffff';
+        ctx.fillText(text, 256, 68);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(size * 4, size * 1, 1);
+        return sprite;
     }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0x88aadd, size: 0.15, transparent: true });
-    const stars = new THREE.Points(starGeo, starMat);
-    scene.add(stars);
 
-    // ----- 4. 核心参数 -----
+    // ----- 4. 定义颜色和碱基字母 -----
     const BASE_COLORS = {
         A: 0xff6b6b,
         T: 0x4ecdc4,
@@ -70,440 +69,524 @@
         C: 0xa29bfe
     };
     const LETTERS = ['A', 'T', 'G', 'C'];
-    const PAIR_MAP = { 'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G' };
+    const PAIR_MAP = { A: 'T', T: 'A', G: 'C', C: 'G' };
 
-    const AMP_Y = 1.8;
-    const AMP_Z = 1.8;
-    const SPACING = 0.8;
-    const TOTAL_PAIRS = 80; // 足够长，视觉上无限
-    const HELIX_LENGTH = TOTAL_PAIRS * SPACING;
-    const START_X = -HELIX_LENGTH / 2;
-    const SPEED = 0.8; // 滚动速度
-
-    // ----- 5. 创建DNA双链（3D立体） -----
-    const dnaGroup = new THREE.Group();
-    scene.add(dnaGroup);
-
-    // 存储碱基对对象以便更新
-    const baseObjects = [];
-
-    // 创建一条链的碱基（球体 + 字母精灵）
-    function createBase(letter, x, y, z, isStrand1) {
-        const group = new THREE.Group();
-        group.position.set(x, y, z);
-
-        // 球体
-        const color = BASE_COLORS[letter] || 0xffffff;
-        const mat = new THREE.MeshStandardMaterial({
-            color: color,
-            roughness: 0.25,
-            metalness: 0.1,
-            emissive: color,
-            emissiveIntensity: 0.15
-        });
-        const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), mat);
-        sphere.castShadow = true;
-        group.add(sphere);
-
-        // 字母精灵 (Canvas)
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0)';
-        ctx.fillRect(0, 0, 32, 32);
-        ctx.font = 'Bold 22px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(letter, 16, 18);
-        const texture = new THREE.CanvasTexture(canvas);
-        const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
-        const sprite = new THREE.Sprite(spriteMat);
-        sprite.scale.set(0.6, 0.6, 1);
-        sprite.position.set(0, 0.6, 0);
-        group.add(sprite);
-
-        // 存储数据便于更新
-        group.userData = { letter, isStrand1, baseX: x, baseY: y, baseZ: z };
-        return group;
+    // ----- 5. 创建场景中的固定元素（星星背景） -----
+    function addStars() {
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 1200;
+        const pos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i += 3) {
+            const r = 35 + Math.random() * 40;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            pos[i] = r * Math.sin(phi) * Math.cos(theta);
+            pos[i+1] = r * Math.sin(phi) * Math.sin(theta);
+            pos[i+2] = r * Math.cos(phi);
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0x88aadd, size: 0.12, transparent: true });
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+        return stars;
     }
+    const starField = addStars();
 
-    // 初始化所有碱基
-    let phase = 0;
-    function buildDNA() {
-        // 清除旧的
-        while(dnaGroup.children.length > 0) {
-            dnaGroup.remove(dnaGroup.children[0]);
+    // ----- 6. 主容器：存放动态元素 -----
+    const container = new THREE.Group();
+    scene.add(container);
+
+    // 阶段提示标签
+    const stageLabel = makeLabel('⚛️ 散落碱基', '#60cfff', 1.2);
+    stageLabel.position.set(0, 4.5, 0);
+    container.add(stageLabel);
+
+    // ----- 7. 数据模型 -----
+    const TOTAL_BASES = 40; // 总碱基数（20对）
+    let bases = []; // 存储每个碱基的 { mesh, letter, targetPos, currentPos, pairIndex }
+    let dnaPairs = []; // 配对连接线
+    let mRNA = null; // { points: [], mesh }
+    let ribosome = null; // 核糖体网格
+    let aminoAcids = []; // { mesh, targetPos, currentPos, color }
+    let proteinGroup = null;
+
+    // 时间参数
+    let elapsed = 0;
+    const CYCLE_DURATION = 20; // 总周期20秒
+
+    // ----- 8. 初始化碱基（散落状态） -----
+    function initBases() {
+        // 清除旧元素
+        while(container.children.length > 1) {
+            container.remove(container.children[container.children.length-1]);
         }
-        baseObjects.length = 0;
+        // 重新添加标签
+        container.add(stageLabel);
 
-        for (let i = 0; i < TOTAL_PAIRS; i++) {
-            const x = START_X + i * SPACING;
-            const angle = x * 0.8 + phase;
+        bases = [];
+        dnaPairs = [];
+        mRNA = null;
+        aminoAcids = [];
+        proteinGroup = null;
 
-            // 链1 (y正, z正)
-            const y1 = AMP_Y * Math.sin(angle);
-            const z1 = AMP_Z * Math.cos(angle);
-            // 链2 (相反相位)
-            const y2 = AMP_Y * Math.sin(angle + Math.PI);
-            const z2 = AMP_Z * Math.cos(angle + Math.PI);
-
-            // 随机碱基配对
-            const idx = Math.floor(Math.random() * 4);
-            const base1 = LETTERS[idx];
-            const base2 = PAIR_MAP[base1];
-
-            const g1 = createBase(base1, x, y1, z1, true);
-            const g2 = createBase(base2, x, y2, z2, false);
-            dnaGroup.add(g1);
-            dnaGroup.add(g2);
-
-            // 存储配对信息
-            baseObjects.push({
-                group1: g1,
-                group2: g2,
-                base1: base1,
-                base2: base2,
-                x: x,
-                idx: i
-            });
-
-            // 创建氢键连接线（圆柱）
-            const midX = x;
-            const midY = (y1 + y2) / 2;
-            const midZ = (z1 + z2) / 2;
-            const dir = new THREE.Vector3(y2 - y1, z2 - z1);
-            const len = dir.length();
-            dir.normalize();
-
-            const cylGeo = new THREE.CylinderGeometry(0.04, 0.04, len, 4);
-            const cylMat = new THREE.MeshStandardMaterial({
-                color: 0x88aaff,
-                emissive: 0x4466aa,
-                emissiveIntensity: 0.2,
-                transparent: true,
-                opacity: 0.4
-            });
-            const cyl = new THREE.Mesh(cylGeo, cylMat);
-            cyl.position.set(midX, midY, midZ);
-            // 旋转使其指向方向
-            const up = new THREE.Vector3(0, 1, 0);
-            const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
-            cyl.quaternion.copy(quat);
-            dnaGroup.add(cyl);
-        }
-    }
-    buildDNA();
-
-    // ----- 6. 动态元素：聚合酶（转录泡）-----
-    const polymeraseGroup = new THREE.Group();
-    scene.add(polymeraseGroup);
-
-    // 聚合酶主体
-    const enzymeMat = new THREE.MeshStandardMaterial({
-        color: 0xff8800,
-        emissive: 0xff4400,
-        emissiveIntensity: 0.8,
-        roughness: 0.2,
-        metalness: 0.1
-    });
-    const enzymeCore = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), enzymeMat);
-    enzymeCore.castShadow = true;
-    polymeraseGroup.add(enzymeCore);
-
-    // 环绕粒子光环
-    const ringParticles = new THREE.BufferGeometry();
-    const ringCount = 30;
-    const ringPos = new Float32Array(ringCount * 3);
-    for (let i = 0; i < ringCount; i++) {
-        const a = (i / ringCount) * Math.PI * 2;
-        ringPos[i*3] = Math.cos(a) * 1.2;
-        ringPos[i*3+1] = Math.sin(a) * 1.2;
-        ringPos[i*3+2] = 0;
-    }
-    ringParticles.setAttribute('position', new THREE.BufferAttribute(ringPos, 3));
-    const ringMat = new THREE.PointsMaterial({ color: 0xffaa44, size: 0.1 });
-    const ring = new THREE.Points(ringParticles, ringMat);
-    polymeraseGroup.add(ring);
-
-    polymeraseGroup.position.set(0, 0, 0);
-
-    // ----- 7. mRNA 链（从聚合酶延伸）-----
-    const mRNAPoints = [];
-    const mRNA_MAX = 60;
-    const mRNAGroup = new THREE.Group();
-    scene.add(mRNAGroup);
-
-    function updateMRNA(time) {
-        // 在聚合酶位置生成新点
-        if (mRNAPoints.length < mRNA_MAX) {
-            const basePos = polymeraseGroup.position.clone();
-            // 添加随机偏移，模拟转录方向（向右 + 轻微上下波动）
-            const offsetY = Math.sin(time * 2 + mRNAPoints.length * 0.5) * 0.4;
-            const offsetZ = Math.cos(time * 1.7 + mRNAPoints.length * 0.3) * 0.4;
-            mRNAPoints.push({
-                x: basePos.x + 1.5 + mRNAPoints.length * 0.35,
-                y: basePos.y - 0.5 + offsetY,
-                z: basePos.z + offsetZ,
-                life: 1.0
-            });
-        }
-        // 移动所有点向右并衰减
-        for (let i = mRNAPoints.length - 1; i >= 0; i--) {
-            const p = mRNAPoints[i];
-            p.x += 0.04;
-            p.life -= 0.001;
-            if (p.life < 0 || p.x > 18) {
-                mRNAPoints.splice(i, 1);
-            }
-        }
-        // 重建mRNA网格
-        while(mRNAGroup.children.length > 0) {
-            const c = mRNAGroup.children[0];
-            c.geometry && c.geometry.dispose();
-            c.material && c.material.dispose();
-            mRNAGroup.remove(c);
-        }
-        if (mRNAPoints.length > 1) {
-            // 绘制线条
-            const positions = [];
-            for (let p of mRNAPoints) {
-                positions.push(p.x, p.y, p.z);
-            }
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            const mat = new THREE.LineBasicMaterial({ color: 0xfd79a8, linewidth: 2 });
-            const line = new THREE.Line(geo, mat);
-            mRNAGroup.add(line);
-
-            // 加一些发光小球
-            for (let i = 0; i < mRNAPoints.length; i+=2) {
-                const p = mRNAPoints[i];
-                const sphere = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.12, 6, 6),
-                    new THREE.MeshBasicMaterial({ color: 0xfd79a8 })
-                );
-                sphere.position.set(p.x, p.y, p.z);
-                mRNAGroup.add(sphere);
-            }
-        }
-    }
-
-    // ----- 8. 核糖体 + 翻译（氨基酸链 -> 蛋白质）-----
-    const ribosomeGroup = new THREE.Group();
-    scene.add(ribosomeGroup);
-
-    const ribMat = new THREE.MeshStandardMaterial({
-        color: 0x7c3aed,
-        emissive: 0x4c1d95,
-        emissiveIntensity: 0.6,
-        roughness: 0.3
-    });
-    const ribCore = new THREE.Mesh(new THREE.SphereGeometry(0.7, 12, 12), ribMat);
-    ribCore.castShadow = true;
-    ribosomeGroup.add(ribCore);
-
-    // 核糖体位置跟随mRNA末端
-    const aminoAcids = [];
-    const aaGroup = new THREE.Group();
-    scene.add(aaGroup);
-
-    let proteinFold = 0;
-
-    function updateTranslation(time) {
-        // 核糖体位置：mRNA末端
-        if (mRNAPoints.length > 10) {
-            const last = mRNAPoints[mRNAPoints.length - 1];
-            ribosomeGroup.position.set(last.x + 1.0, last.y, last.z);
-        } else {
-            ribosomeGroup.position.set(6, -0.5, 0);
-        }
-
-        // 添加氨基酸 (每帧概率)
-        if (Math.random() < 0.15 && aminoAcids.length < 40) {
-            const idx = aminoAcids.length;
-            const color = new THREE.Color().setHSL(0.55 + idx * 0.025, 0.7, 0.6);
-            const pos = ribosomeGroup.position.clone();
-            pos.x += 0.5 + idx * 0.4;
-            pos.y += Math.sin(idx * 1.2) * 0.6;
-            pos.z += Math.cos(idx * 0.9) * 0.6;
-            aminoAcids.push({
-                x: pos.x,
-                y: pos.y,
-                z: pos.z,
-                targetX: pos.x,
-                targetY: pos.y,
-                targetZ: pos.z,
+        const half = TOTAL_BASES / 2;
+        for (let i = 0; i < TOTAL_BASES; i++) {
+            const letter = LETTERS[i % 4];
+            const color = BASE_COLORS[letter];
+            const sphereMat = new THREE.MeshStandardMaterial({
                 color: color,
-                idx: idx
-            });
-        }
-
-        // 更新氨基酸位置：逐渐形成折叠的蛋白质（球状）
-        const centerX = 12;
-        const centerY = 0;
-        const centerZ = 0;
-        const total = aminoAcids.length;
-        for (let i = 0; i < total; i++) {
-            const aa = aminoAcids[i];
-            // 随着时间推移，折叠成球状
-            const progress = Math.min(1, (total - i) / total * 0.8 + 0.2);
-            const radius = 1.8 + 0.6 * Math.sin(time * 0.2 + i);
-            const theta = (i / total) * Math.PI * 2 + time * 0.05;
-            const phi = Math.sin(i * 0.7 + time * 0.1) * 1.2;
-            const targetX = centerX + radius * 0.8 * Math.sin(theta) * Math.cos(phi);
-            const targetY = centerY + radius * 0.8 * Math.sin(phi);
-            const targetZ = centerZ + radius * 0.8 * Math.cos(theta) * Math.cos(phi);
-            // 插值移动
-            aa.x += (targetX - aa.x) * 0.03;
-            aa.y += (targetY - aa.y) * 0.03;
-            aa.z += (targetZ - aa.z) * 0.03;
-        }
-
-        // 重建氨基酸显示
-        while(aaGroup.children.length > 0) {
-            const c = aaGroup.children[0];
-            c.geometry && c.geometry.dispose();
-            c.material && c.material.dispose();
-            aaGroup.remove(c);
-        }
-
-        // 绘制肽键连线
-        if (aminoAcids.length > 1) {
-            const positions = [];
-            for (let aa of aminoAcids) {
-                positions.push(aa.x, aa.y, aa.z);
-            }
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            const mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
-            const line = new THREE.Line(geo, mat);
-            aaGroup.add(line);
-        }
-
-        // 绘制氨基酸球体
-        for (let aa of aminoAcids) {
-            const mat = new THREE.MeshStandardMaterial({
-                color: aa.color,
-                emissive: aa.color,
-                emissiveIntensity: 0.3,
                 roughness: 0.3,
-                metalness: 0.1
+                metalness: 0.1,
+                emissive: color,
+                emissiveIntensity: 0.2
             });
-            const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), mat);
-            sphere.position.set(aa.x, aa.y, aa.z);
+            const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), sphereMat);
             sphere.castShadow = true;
-            aaGroup.add(sphere);
+            // 散落位置：随机在空间内
+            const x = (Math.random() - 0.5) * 12;
+            const y = (Math.random() - 0.5) * 6;
+            const z = (Math.random() - 0.5) * 6;
+            sphere.position.set(x, y, z);
+            container.add(sphere);
+
+            // 字母精灵
+            const label = makeLabel(letter, '#ffffff', 0.3);
+            label.position.set(0, 0.6, 0);
+            sphere.add(label);
+
+            // 存储
+            bases.push({
+                mesh: sphere,
+                letter: letter,
+                currentPos: new THREE.Vector3(x, y, z),
+                targetPos: new THREE.Vector3(0, 0, 0),
+                pairIndex: -1
+            });
         }
 
-        // 最终蛋白质光晕（如果氨基酸够多）
-        if (aminoAcids.length > 15) {
+        // 设定配对关系（前一半与后一半配对）
+        for (let i = 0; i < half; i++) {
+            const idx1 = i;
+            const idx2 = i + half;
+            bases[idx1].pairIndex = idx2;
+            bases[idx2].pairIndex = idx1;
+        }
+    }
+
+    // ----- 9. 计算DNA组装目标位置（横向双螺旋） -----
+    function computeDNAPositions(progress) {
+        // progress: 0~1
+        const startX = -5;
+        const endX = 5;
+        const spacing = (endX - startX) / (TOTAL_BASES / 2 - 1);
+        const ampY = 1.8;
+        const ampZ = 1.8;
+        const half = TOTAL_BASES / 2;
+        const phase = 0;
+
+        for (let i = 0; i < half; i++) {
+            const idx1 = i;
+            const idx2 = i + half;
+            const x = startX + i * spacing;
+            const angle = x * 0.8 + phase;
+            const y1 = ampY * Math.sin(angle);
+            const z1 = ampZ * Math.cos(angle);
+            const y2 = ampY * Math.sin(angle + Math.PI);
+            const z2 = ampZ * Math.cos(angle + Math.PI);
+
+            // 目标位置（线性插值）
+            const p1 = new THREE.Vector3(x, y1, z1);
+            const p2 = new THREE.Vector3(x, y2, z2);
+            bases[idx1].targetPos.copy(p1);
+            bases[idx2].targetPos.copy(p2);
+        }
+    }
+
+    // ----- 10. 创建DNA连接线（氢键） -----
+    function createHydrogenBonds() {
+        // 清除旧线
+        for (let i = container.children.length - 1; i >= 0; i--) {
+            const child = container.children[i];
+            if (child.isLine) {
+                container.remove(child);
+            }
+        }
+        dnaPairs = [];
+        const half = TOTAL_BASES / 2;
+        for (let i = 0; i < half; i++) {
+            const idx1 = i;
+            const idx2 = i + half;
+            const p1 = bases[idx1].currentPos;
+            const p2 = bases[idx2].currentPos;
+            const points = [p1.clone(), p2.clone()];
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const mat = new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.3 });
+            const line = new THREE.Line(geo, mat);
+            container.add(line);
+            dnaPairs.push({ line, idx1, idx2 });
+        }
+    }
+
+    // ----- 11. 更新氢键位置 -----
+    function updateHydrogenBonds() {
+        for (let pair of dnaPairs) {
+            const p1 = bases[pair.idx1].currentPos;
+            const p2 = bases[pair.idx2].currentPos;
+            const positions = pair.line.geometry.attributes.position;
+            positions.setXYZ(0, p1.x, p1.y, p1.z);
+            positions.setXYZ(1, p2.x, p2.y, p2.z);
+            positions.needsUpdate = true;
+        }
+    }
+
+    // ----- 12. 创建mRNA（初始为空） -----
+    function createMRNA() {
+        if (mRNA) {
+            container.remove(mRNA.mesh);
+        }
+        const points = [];
+        const geo = new THREE.BufferGeometry();
+        const mat = new THREE.LineBasicMaterial({ color: 0xfd79a8, linewidth: 2 });
+        const line = new THREE.Line(geo, mat);
+        container.add(line);
+        mRNA = { points, mesh: line };
+    }
+
+    // ----- 13. 更新mRNA（根据进度） -----
+    function updateMRNA(progress) {
+        if (!mRNA) return;
+        const count = Math.floor(progress * 50) + 5;
+        const startX = -3 + progress * 2;
+        const startY = 0;
+        const startZ = 0;
+        mRNA.points = [];
+        for (let i = 0; i < count; i++) {
+            const x = startX + i * 0.15;
+            const y = startY + Math.sin(i * 0.5 + progress * 4) * 0.4;
+            const z = startZ + Math.cos(i * 0.3 + progress * 3) * 0.4;
+            mRNA.points.push(new THREE.Vector3(x, y, z));
+        }
+        const geo = new THREE.BufferGeometry().setFromPoints(mRNA.points);
+        mRNA.mesh.geometry.dispose();
+        mRNA.mesh.geometry = geo;
+    }
+
+    // ----- 14. 创建核糖体 -----
+    function createRibosome() {
+        if (ribosome) {
+            container.remove(ribosome);
+        }
+        const group = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x4c1d95, emissiveIntensity: 0.6 });
+        const core = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16), mat);
+        core.castShadow = true;
+        group.add(core);
+        // 环绕粒子
+        const ringGeo = new THREE.BufferGeometry();
+        const count = 20;
+        const pos = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+            const a = (i / count) * Math.PI * 2;
+            pos[i*3] = Math.cos(a) * 1.0;
+            pos[i*3+1] = Math.sin(a) * 1.0;
+            pos[i*3+2] = 0;
+        }
+        ringGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const ringMat = new THREE.PointsMaterial({ color: 0xaa88ff, size: 0.08 });
+        const ring = new THREE.Points(ringGeo, ringMat);
+        group.add(ring);
+        container.add(group);
+        ribosome = group;
+    }
+
+    // ----- 15. 更新核糖体位置（沿mRNA末端） -----
+    function updateRibosome(progress) {
+        if (!ribosome || !mRNA || mRNA.points.length < 2) return;
+        const idx = Math.min(Math.floor(progress * mRNA.points.length), mRNA.points.length - 1);
+        const pos = mRNA.points[idx];
+        if (pos) {
+            ribosome.position.copy(pos);
+        }
+    }
+
+    // ----- 16. 氨基酸和蛋白质折叠 -----
+    function updateTranslation(progress) {
+        // 清除旧氨基酸和蛋白质
+        if (proteinGroup) {
+            container.remove(proteinGroup);
+            proteinGroup = null;
+        }
+        // 清除旧的氨基酸（单独移除）
+        for (let i = container.children.length - 1; i >= 0; i--) {
+            const child = container.children[i];
+            if (child.userData && child.userData.isAmino) {
+                container.remove(child);
+            }
+        }
+
+        if (!ribosome) return;
+
+        const count = Math.floor(progress * 25);
+        const positions = [];
+        const colors = [];
+
+        // 先收集氨基酸位置（从核糖体位置延伸，逐渐折叠）
+        const basePos = ribosome.position.clone();
+        for (let i = 0; i < count; i++) {
+            const t = i / Math.max(1, count - 1);
+            // 初始方向：向右并略微波动
+            let x = basePos.x + 0.5 + i * 0.4;
+            let y = basePos.y + Math.sin(i * 1.2 + progress * 2) * 0.5;
+            let z = basePos.z + Math.cos(i * 0.9 + progress * 1.5) * 0.5;
+
+            // 折叠：逐渐向球状靠拢
+            if (count > 8 && progress > 0.6) {
+                const foldProgress = Math.min(1, (progress - 0.6) / 0.4);
+                const center = new THREE.Vector3(6, 0, 0);
+                const radius = 1.8;
+                const angle1 = (i / count) * Math.PI * 2 + progress * 0.5;
+                const angle2 = Math.sin(i * 0.7 + progress) * 1.2;
+                const targetX = center.x + radius * 0.8 * Math.sin(angle1) * Math.cos(angle2);
+                const targetY = center.y + radius * 0.8 * Math.sin(angle2);
+                const targetZ = center.z + radius * 0.8 * Math.cos(angle1) * Math.cos(angle2);
+                // 插值
+                x = x + (targetX - x) * foldProgress * 0.06;
+                y = y + (targetY - y) * foldProgress * 0.06;
+                z = z + (targetZ - z) * foldProgress * 0.06;
+            }
+
+            const color = new THREE.Color().setHSL(0.55 + i * 0.025, 0.8, 0.6);
+            positions.push(x, y, z);
+            colors.push(color.r, color.g, color.b);
+
+            // 创建小球体
+            const mat = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.3,
+                roughness: 0.3
+            });
+            const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), mat);
+            sphere.position.set(x, y, z);
+            sphere.castShadow = true;
+            sphere.userData.isAmino = true;
+            container.add(sphere);
+        }
+
+        // 如果有足够氨基酸，绘制肽键连线
+        if (count > 1) {
+            const points = [];
+            for (let i = 0; i < count; i++) {
+                const idx = i * 3;
+                points.push(new THREE.Vector3(positions[idx], positions[idx+1], positions[idx+2]));
+            }
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
+            const line = new THREE.Line(lineGeo, lineMat);
+            line.userData.isAmino = true;
+            container.add(line);
+        }
+
+        // 蛋白质光晕（折叠后期）
+        if (count > 15 && progress > 0.8) {
             const glowMat = new THREE.MeshBasicMaterial({
                 color: 0xa78bfa,
                 transparent: true,
-                opacity: 0.08 + 0.03 * Math.sin(time * 0.2)
+                opacity: 0.1 + 0.05 * Math.sin(elapsed * 2)
             });
             const glow = new THREE.Mesh(new THREE.SphereGeometry(2.5, 16, 16), glowMat);
-            glow.position.set(centerX, centerY, centerZ);
-            aaGroup.add(glow);
+            glow.position.set(6, 0, 0);
+            glow.userData.isAmino = true;
+            container.add(glow);
         }
     }
 
-    // ----- 9. 3D 标签 (Sprite) -----
-    function makeLabel(text, color, x, y, z) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0)';
-        ctx.fillRect(0, 0, 256, 64);
-        ctx.font = 'Bold 28px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0,0,0,0.9)';
-        ctx.shadowBlur = 12;
-        ctx.fillStyle = color;
-        ctx.fillText(text, 128, 34);
-        const texture = new THREE.CanvasTexture(canvas);
-        const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
-        const sprite = new THREE.Sprite(mat);
-        sprite.position.set(x, y, z);
-        sprite.scale.set(4, 1, 1);
-        return sprite;
+    // ----- 17. 主更新函数（每帧） -----
+    function updateScene(time) {
+        elapsed = time;
+        const t = elapsed % CYCLE_DURATION;
+
+        // 确定阶段
+        let stage = 0; // 0:散落, 1:组装, 2:解旋转录, 3:翻译, 4:折叠
+        let progress = 0;
+        if (t < 4) { stage = 0; progress = t / 4; }
+        else if (t < 8) { stage = 1; progress = (t - 4) / 4; }
+        else if (t < 12) { stage = 2; progress = (t - 8) / 4; }
+        else if (t < 16) { stage = 3; progress = (t - 12) / 4; }
+        else { stage = 4; progress = (t - 16) / 4; }
+
+        // 更新阶段标签
+        const stageNames = [
+            '⚛️ 散落碱基',
+            '🧬 组装 DNA 双链',
+            '✂️ 解旋 · 转录 mRNA',
+            '⚙️ 翻译 · 肽链延长',
+            '🧩 蛋白质折叠 (三级结构)'
+        ];
+        stageLabel.material.map = makeLabel(stageNames[stage], '#60cfff', 1.2).material.map;
+        stageLabel.material.needsUpdate = true;
+
+        // ---- 阶段0：散落 ----
+        if (stage === 0) {
+            // 碱基随机运动
+            for (let b of bases) {
+                b.mesh.position.x += (Math.random() - 0.5) * 0.02;
+                b.mesh.position.y += (Math.random() - 0.5) * 0.02;
+                b.mesh.position.z += (Math.random() - 0.5) * 0.02;
+                // 限制范围
+                b.mesh.position.x = Math.max(-6, Math.min(6, b.mesh.position.x));
+                b.mesh.position.y = Math.max(-3, Math.min(3, b.mesh.position.y));
+                b.mesh.position.z = Math.max(-3, Math.min(3, b.mesh.position.z));
+                b.currentPos.copy(b.mesh.position);
+            }
+            // 删除可能的DNA线
+            if (dnaPairs.length > 0) {
+                for (let pair of dnaPairs) {
+                    container.remove(pair.line);
+                }
+                dnaPairs = [];
+            }
+            // 清除mRNA
+            if (mRNA) {
+                container.remove(mRNA.mesh);
+                mRNA = null;
+            }
+            if (ribosome) {
+                container.remove(ribosome);
+                ribosome = null;
+            }
+            // 清除氨基酸
+            for (let i = container.children.length - 1; i >= 0; i--) {
+                if (container.children[i].userData && container.children[i].userData.isAmino) {
+                    container.remove(container.children[i]);
+                }
+            }
+        }
+
+        // ---- 阶段1：组装DNA ----
+        if (stage === 1) {
+            // 计算目标位置（第一次调用时）
+            if (!bases[0].targetPos.x) {
+                computeDNAPositions(0);
+            }
+            computeDNAPositions(progress);
+            // 插值移动
+            for (let b of bases) {
+                b.mesh.position.lerp(b.targetPos, 0.05);
+                b.currentPos.copy(b.mesh.position);
+            }
+            // 创建/更新氢键
+            if (dnaPairs.length === 0 && progress > 0.1) {
+                createHydrogenBonds();
+            } else {
+                updateHydrogenBonds();
+            }
+            // 清除mRNA等
+            if (mRNA) { container.remove(mRNA.mesh); mRNA = null; }
+            if (ribosome) { container.remove(ribosome); ribosome = null; }
+            // 清除氨基酸
+            for (let i = container.children.length - 1; i >= 0; i--) {
+                if (container.children[i].userData && container.children[i].userData.isAmino) {
+                    container.remove(container.children[i]);
+                }
+            }
+        }
+
+        // ---- 阶段2：解旋+转录 ----
+        if (stage === 2) {
+            // 继续维持DNA结构，但解旋：从中间开始打开
+            const half = TOTAL_BASES / 2;
+            const openRange = Math.floor(progress * 8);
+            const centerIdx = Math.floor(half / 2);
+            for (let i = 0; i < half; i++) {
+                const idx1 = i;
+                const idx2 = i + half;
+                const dist = Math.abs(i - centerIdx);
+                if (dist <= openRange) {
+                    // 打开：向外偏移
+                    const factor = (1 - dist / (openRange + 1)) * 0.8 * progress;
+                    bases[idx1].targetPos.y += factor * 0.5;
+                    bases[idx2].targetPos.y -= factor * 0.5;
+                    bases[idx1].targetPos.z += factor * 0.3;
+                    bases[idx2].targetPos.z -= factor * 0.3;
+                } else {
+                    // 恢复原位（原DNA位置）
+                    computeDNAPositions(1); // 重新计算完整DNA位置
+                }
+            }
+            // 移动碱基
+            for (let b of bases) {
+                b.mesh.position.lerp(b.targetPos, 0.05);
+                b.currentPos.copy(b.mesh.position);
+            }
+            updateHydrogenBonds();
+
+            // 转录mRNA
+            if (!mRNA) createMRNA();
+            updateMRNA(progress);
+            // 核糖体尚未出现
+            if (ribosome) { container.remove(ribosome); ribosome = null; }
+            // 清除氨基酸
+            for (let i = container.children.length - 1; i >= 0; i--) {
+                if (container.children[i].userData && container.children[i].userData.isAmino) {
+                    container.remove(container.children[i]);
+                }
+            }
+        }
+
+        // ---- 阶段3：翻译 ----
+        if (stage === 3) {
+            // 维持DNA解旋状态，但不更新（冻结）
+            // 创建核糖体
+            if (!ribosome) createRibosome();
+            // 更新mRNA继续延伸
+            updateMRNA(1); // 保持全长
+            updateRibosome(progress);
+            // 翻译产生氨基酸
+            updateTranslation(progress);
+        }
+
+        // ---- 阶段4：折叠 ----
+        if (stage === 4) {
+            // 继续翻译但折叠
+            if (!ribosome) createRibosome();
+            updateMRNA(1);
+            updateRibosome(1);
+            updateTranslation(0.8 + progress * 0.2); // 折叠进度
+        }
+
+        // 旋转星星
+        starField.rotation.y += 0.0005;
     }
 
-    scene.add(makeLabel('🧬 DNA 双链 (无限延伸)', '#60cfff', 0, 4.5, 0));
-    scene.add(makeLabel('✂️ 转录 (RNA聚合酶)', '#ff8800', -0.5, 2.8, 2.5));
-    scene.add(makeLabel('🧬 mRNA', '#fd79a8', 8, 2.0, 1.5));
-    scene.add(makeLabel('⚙️ 翻译 (核糖体)', '#7c3aed', 12, 1.2, 2.0));
-    scene.add(makeLabel('🧩 蛋白质折叠 (三级结构)', '#a78bfa', 16, -1.5, 0));
+    // ----- 18. 初始化 -----
+    initBases();
 
-    // ----- 10. 动画循环 -----
+    // ----- 19. 动画循环 -----
     let clock = new THREE.Clock();
 
     function animate() {
         const delta = clock.getDelta();
         const time = clock.elapsedTime;
 
-        // 10.1 更新DNA相位（无限滚动）
-        phase += delta * SPEED;
-        // 重新构建DNA（为了让碱基位置连续变化，我们直接修改每个碱基的位置）
-        // 为了性能，我们更新已存在的对象位置，而不是重建
-        for (let i = 0; i < baseObjects.length; i++) {
-            const pair = baseObjects[i];
-            const x = pair.x;
-            const angle = x * 0.8 + phase;
+        updateScene(time);
 
-            const y1 = AMP_Y * Math.sin(angle);
-            const z1 = AMP_Z * Math.cos(angle);
-            const y2 = AMP_Y * Math.sin(angle + Math.PI);
-            const z2 = AMP_Z * Math.cos(angle + Math.PI);
+        // 相机微动
+        camera.position.x = 8 + Math.sin(time * 0.02) * 1.5;
+        camera.position.y = 5 + Math.sin(time * 0.03) * 0.8;
+        camera.lookAt(1, 0, 0);
 
-            pair.group1.position.set(x, y1, z1);
-            pair.group2.position.set(x, y2, z2);
-
-            // 更新连接线（配对键）—— 为了简单，我们重建氢键（或者忽略更新以提升性能）
-            // 实际上这里为了性能，我们不更新氢键的位置，而是让它们跟随幅度变化不大
-            // 更好的方式：由于氢键太多，我们每5帧重建一次，或者干脆不做动态氢键
-            // 这里采用简单方式：删除旧的氢键，重新生成（每5帧）
-        }
-
-        // 10.2 聚合酶动态（上下浮动 + 旋转）
-        const enzymeY = 0.2 * Math.sin(time * 1.5);
-        const enzymeZ = 0.2 * Math.cos(time * 1.3);
-        polymeraseGroup.position.set(0.5, enzymeY, enzymeZ);
-        polymeraseGroup.rotation.x = Math.sin(time * 0.5) * 0.1;
-        polymeraseGroup.rotation.z = Math.cos(time * 0.7) * 0.1;
-
-        // 10.3 更新mRNA
-        updateMRNA(time);
-
-        // 10.4 更新翻译
-        updateTranslation(time);
-
-        // 10.5 星星旋转
-        stars.rotation.y += 0.0003;
-
-        // 10.6 相机微微晃动（增加动感）
-        camera.position.x = 10 + Math.sin(time * 0.02) * 1;
-        camera.position.y = 6 + Math.sin(time * 0.03) * 0.5;
-        camera.lookAt(2, 0, 0);
-
-        // 10.7 渲染
         renderer.render(scene, camera);
         requestAnimationFrame(animate);
     }
 
-    // ----- 窗口自适应 -----
+    animate();
+
+    // ----- 20. 窗口自适应 -----
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
-
-    animate();
 
 })();
