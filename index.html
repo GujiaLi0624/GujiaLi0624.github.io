@@ -276,12 +276,7 @@
             }
         }
 
-        canvas {
-            position: fixed !important;
-            top: 0;
-            left: 0;
-            z-index: 0 !important;
-        }
+        /* 特效canvas自动置于底层（由dna-process.js设置） */
     </style>
 </head>
 <body>
@@ -417,9 +412,8 @@
         </div>
     </div>
 
-    <!-- Three.js + DNA特效 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="dna-effect.js"></script>
+    <!-- 引入中心法则动画特效（独立文件） -->
+    <script src="dna-process.js"></script>
 
 </body>
 </html>
