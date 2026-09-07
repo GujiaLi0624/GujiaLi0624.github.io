@@ -26,6 +26,10 @@
             margin: 0 auto;
             padding: 20px 30px 60px;
             min-height: 100vh;
+            pointer-events: none; /* 让鼠标能穿透背景点击文字，但文字本身可点 */
+        }
+        .app * {
+            pointer-events: auto; /* 恢复内部元素的点击 */
         }
 
         /* ===== Navbar ===== */
@@ -79,12 +83,12 @@
 
         /* ===== Sidebar ===== */
         .sidebar {
-            background: rgba(20, 30, 50, 0.55);
-            backdrop-filter: blur(8px);
+            background: rgba(20, 30, 50, 0.6);
+            backdrop-filter: blur(12px);
             border-radius: 20px;
             padding: 28px 22px;
             border: 1px solid rgba(255, 255, 255, 0.06);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
             height: fit-content;
         }
         .avatar {
@@ -167,7 +171,7 @@
 
         .module {
             background: rgba(16, 24, 42, 0.5);
-            backdrop-filter: blur(6px);
+            backdrop-filter: blur(8px);
             border-radius: 18px;
             padding: 24px 28px 30px;
             border: 1px solid rgba(255, 255, 255, 0.05);
@@ -237,7 +241,6 @@
             gap: 12px;
         }
 
-        /* ===== Home module (no cards) ===== */
         .home-content {
             font-size: 1rem;
             color: rgba(255, 255, 255, 0.7);
@@ -247,7 +250,6 @@
             color: #c4b5fd;
         }
 
-        /* ===== Responsive ===== */
         @media (max-width: 900px) {
             .main-grid {
                 grid-template-columns: 1fr;
@@ -275,20 +277,14 @@
                 grid-template-columns: 1fr;
             }
         }
-
-        /* 特效canvas自动置于底层（由dna-process.js设置） */
     </style>
 </head>
 <body>
 
     <div class="app">
 
-        <!-- Navbar -->
         <header class="navbar">
-            <div class="logo">
-                🧬 LGJ
-                <small>· Bioinfo</small>
-            </div>
+            <div class="logo">🧬 LGJ <small>· Bioinfo</small></div>
             <nav class="nav-links">
                 <a href="#">🏠 Home</a>
                 <a href="#">📚 Resources</a>
@@ -297,10 +293,8 @@
             </nav>
         </header>
 
-        <!-- Main -->
         <div class="main-grid">
 
-            <!-- Sidebar -->
             <aside class="sidebar">
                 <div class="avatar">👤</div>
                 <h2>LGJ</h2>
@@ -312,10 +306,8 @@
                 <a href="#" class="btn-cv">📄 View My CV</a>
             </aside>
 
-            <!-- Content -->
             <main class="content">
 
-                <!-- Module: Home -->
                 <section class="module">
                     <div class="module-title"><span class="icon">🏠</span> Home</div>
                     <div class="home-content">
@@ -324,87 +316,34 @@
                     </div>
                 </section>
 
-                <!-- Module: Resources -->
                 <section class="module">
                     <div class="module-title"><span class="icon">📚</span> Resources</div>
                     <div class="module-desc">Curated learning materials, papers, and datasets</div>
                     <div class="item-grid">
-                        <a href="#" class="item-card">
-                            <div class="repo-name">crazyhottommy/scRNAseq-analysis-notes</div>
-                            <div class="repo-desc">Comprehensive scRNA-seq analysis notes from preprocessing to clustering.</div>
-                            <div class="repo-meta">⭐ 1.2k · 🐍 Python</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">theislab/single-cell-tutorial</div>
-                            <div class="repo-desc">Official Scanpy tutorial covering core workflows.</div>
-                            <div class="repo-meta">⭐ 800 · 📘 Jupyter</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">pliang279/awesome-multimodal-ml</div>
-                            <div class="repo-desc">Must-read papers in multimodal machine learning.</div>
-                            <div class="repo-meta">⭐ 3.2k · 📄</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">beamandrew/medical-data</div>
-                            <div class="repo-desc">Public medical datasets for research.</div>
-                            <div class="repo-meta">⭐ 2.6k · 🏥</div>
-                        </a>
+                        <a href="#" class="item-card"><div class="repo-name">crazyhottommy/scRNAseq-analysis-notes</div><div class="repo-desc">Comprehensive scRNA-seq analysis notes.</div><div class="repo-meta">⭐ 1.2k · 🐍</div></a>
+                        <a href="#" class="item-card"><div class="repo-name">theislab/single-cell-tutorial</div><div class="repo-desc">Official Scanpy tutorial.</div><div class="repo-meta">⭐ 800 · 📘</div></a>
+                        <a href="#" class="item-card"><div class="repo-name">pliang279/awesome-multimodal-ml</div><div class="repo-desc">Must-read papers in multimodal ML.</div><div class="repo-meta">⭐ 3.2k · 📄</div></a>
+                        <a href="#" class="item-card"><div class="repo-name">beamandrew/medical-data</div><div class="repo-desc">Public medical datasets.</div><div class="repo-meta">⭐ 2.6k · 🏥</div></a>
                     </div>
                 </section>
 
-                <!-- Module: Tools -->
                 <section class="module">
                     <div class="module-title"><span class="icon">🔧</span> Tools</div>
-                    <div class="module-desc">Software, frameworks, and models I use or follow</div>
+                    <div class="module-desc">Software, frameworks, and models I use</div>
                     <div class="item-grid">
-                        <a href="#" class="item-card">
-                            <div class="repo-name">satijalab/seurat</div>
-                            <div class="repo-desc">R toolkit for single-cell genomics.</div>
-                            <div class="repo-meta">⭐ 2.1k · 📊 R</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">bowang-lab/scGPT</div>
-                            <div class="repo-desc">GPT‑based foundation model for single cells.</div>
-                            <div class="repo-meta">⭐ 560 · 🤖 PyTorch</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">mahmoodlab/UNI</div>
-                            <div class="repo-desc">Universal histopathology foundation model.</div>
-                            <div class="repo-meta">⭐ 480 · 🧠 PyTorch</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">hila-chefer/Transformer-Explainability</div>
-                            <div class="repo-desc">Attention visualization and interpretability.</div>
-                            <div class="repo-meta">⭐ 890 · 🐍 Python</div>
-                        </a>
+                        <a href="#" class="item-card"><div class="repo-name">satijalab/seurat</div><div class="repo-desc">R toolkit for single-cell genomics.</div><div class="repo-meta">⭐ 2.1k · 📊</div></a>
+                        <a href="#" class="item-card"><div class="repo-name">bowang-lab/scGPT</div><div class="repo-desc">GPT‑based foundation model for single cells.</div><div class="repo-meta">⭐ 560 · 🤖</div></a>
+                        <a href="#" class="item-card"><div class="repo-name">mahmoodlab/UNI</div><div class="repo-desc">Universal histopathology foundation model.</div><div class="repo-meta">⭐ 480 · 🧠</div></a>
                     </div>
                 </section>
 
-                <!-- Module: Notes -->
                 <section class="module">
                     <div class="module-title"><span class="icon">📝</span> Notes</div>
                     <div class="module-desc">My personal study notes and workflows</div>
                     <div class="item-grid">
-                        <a href="#" class="item-card">
-                            <div class="repo-name">scverse/scanpy</div>
-                            <div class="repo-desc">My notes on Scanpy for scalable single-cell analysis.</div>
-                            <div class="repo-meta">⭐ 1.8k · 🐍 Python</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">vib-singlecell-nf/vsn-pipelines</div>
-                            <div class="repo-desc">Reproducible Nextflow pipelines for scRNA-seq.</div>
-                            <div class="repo-meta">⭐ 210 · 🧬 Nextflow</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">shap/shap</div>
-                            <div class="repo-desc">Interpretability notes using SHAP values.</div>
-                            <div class="repo-meta">⭐ 21k · 🐍 Python</div>
-                        </a>
-                        <a href="#" class="item-card">
-                            <div class="repo-name">pytorch/captum</div>
-                            <div class="repo-desc">Model interpretability with Captum (PyTorch).</div>
-                            <div class="repo-meta">⭐ 4.5k · 🔥 PyTorch</div>
-                        </a>
+                        <a href="#" class="item-card"><div class="repo-name">scverse/scanpy</div><div class="repo-desc">Scalable single-cell analysis.</div><div class="repo-meta">⭐ 1.8k · 🐍</div></a>
+                        <a href="#" class="item-card"><div class="repo-name">vib-singlecell-nf/vsn-pipelines</div><div class="repo-desc">Reproducible Nextflow pipelines.</div><div class="repo-meta">⭐ 210 · 🧬</div></a>
+                        <a href="#" class="item-card"><div class="repo-name">shap/shap</div><div class="repo-desc">Interpretability with SHAP.</div><div class="repo-meta">⭐ 21k · 🐍</div></a>
                     </div>
                 </section>
 
@@ -412,8 +351,9 @@
         </div>
     </div>
 
-    <!-- 引入中心法则动画特效（独立文件） -->
-    <script src="dna-process.js"></script>
+    <!-- 引入 Three.js 和 3D 中心法则特效 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="dna-3d-process.js"></script>
 
 </body>
 </html>
