@@ -12,16 +12,17 @@ window.SITE_CONFIG = {
 
   /* ---------- Basic site info ---------- */
   site: {
-    title: 'Gujia LI | Personal Website',
-    author: 'Gujia LI',
+    title: 'Gujia Li | Personal Website',
+    author: 'Gujia Li',
     motto: 'Time punishes everyone who fails to record!',
-    footer: '© 2026 Gujia LI · Powered by GitHub Pages',
+    footer: '© 2026 Gujia Li · Powered by GitHub Pages',
     // Navigation bar (anchor matches the module id in the modules array)
     nav: [
       { label: 'Home',     anchor: 'home' },
       { label: 'About',    anchor: 'about' },
       { label: 'Research', anchor: 'research' },
-      { label: 'Timeline', anchor: 'timeline' },
+      { label: 'Timeline',   anchor: 'timeline' },
+      { label: 'Repository', anchor: 'repository' },
     ],
   },
 
@@ -29,7 +30,7 @@ window.SITE_CONFIG = {
   hero: {
     // Avatar (local image under assets/img/)
     avatar: 'assets/img/avatar.jpg',
-    name: 'Gujia LI',
+    name: 'Gujia Li',
     tagline: '🏫 NJMU | ⚕️ Medical Laboratory Technology',
     // Contact line shown under the tagline (aletolia-style)
     contact: {
@@ -45,6 +46,20 @@ window.SITE_CONFIG = {
     ],
     // Scroll hint at the bottom of the hero
     scrollHint: 'Scroll down to explore ↓',
+  },
+
+  /* ---------- Music player (files under assets/music/) ---------- */
+  music: {
+    enabled: true,
+    // List of tracks. Add your own files under assets/music/ and
+    // list them here with { title, src }. `src` is relative to the
+    // site root (e.g. 'assets/music/song.mp3').
+    tracks: [
+      { title: 'The Rose - Nebula', src: 'assets/music/The Rose - Nebula.wav' },
+    ],
+    autoplay: false,    // Browsers block autoplay with sound; loop until user interacts
+    loop: true,         // Loop the playlist
+    defaultVolume: 0.4, // 0~1
   },
 
   /* ---------- DNA base-pair effect (can be turned off) ---------- */
@@ -71,7 +86,7 @@ window.SITE_CONFIG = {
       enabled: true,
       data: {
         text: [
-          'Hi, I am Gujia LI, an undergraduate student majoring in Medical Laboratory Technology at Nanjing Medical University (NJMU).',
+          'Hi, I am Gujia Li, an undergraduate student majoring in Medical Laboratory Technology at Nanjing Medical University (NJMU).',
           'This website serves as a personal space to record my study notes, research interests and small projects.',
           'Time punishes everyone who fails to record! — so I write things down here.',
         ],
@@ -99,6 +114,16 @@ window.SITE_CONFIG = {
       data: [
         { year: '2026', title: 'Personal website launched', desc: 'Built a modular personal homepage with HTML/CSS/JS.' },
       ],
+    },
+    {
+      type: 'repository',
+      id: 'repository',
+      title: 'Repository',
+      icon: '📁',
+      enabled: true,
+      repo: 'GujiaLi0624/GujiaLi0624.github.io',
+      folder: 'repository',
+      branch: 'main',
     },
   ],
 };
