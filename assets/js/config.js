@@ -65,8 +65,7 @@ window.SITE_CONFIG = {
   /* ---------- ECG cardiac monitor effect (left side) ---------- */
   ecgEffect: {
     enabled: true,
-    width: 340,      // canvas width in px (height = full viewport)
-    speed: 200,      // pixels scrolled per second (trace speed)
+    speed: 60,       // sweep cursor speed (px/s) — one beat ≈ 48px
   },
 
   /* ---------- DNA base-pair effect (can be turned off) ---------- */

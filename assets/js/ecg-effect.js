@@ -1,15 +1,17 @@
 /* ============================================================
  * ECG / EKG effect — Hospital monitor style (Canvas)
  *
- * A small framed ECG monitor embedded in the hero section.
- * Uses a sweep cursor: a bright dot moves left→right drawing
- * the waveform in real-time. Old trace stays visible until the
- * cursor wraps around and overwrites it. Just like a real
- * hospital cardiac monitor.
+ * Sweep-cursor renderer: a bright dot moves left→right at a
+ * constant speed, drawing the ECG waveform in real time like a
+ * real cardiac monitor. Old trace stays visible until the cursor
+ * wraps around and overwrites it.
+ *
+ * Key rendering detail: each frame the cursor sweeps several
+ * pixels; we sub-sample the ECG at 0.5px intervals along that
+ * sweep so sharp features (the QRS spike) stay crisp instead of
+ * being smeared into vertical bands.
  *
  * Rhythm: normal sinus rhythm at 75 bpm with P-QRS-T waves.
- *
- * Dependency: window.SITE_CONFIG.ecgEffect; set enabled:false to turn off.
  * ============================================================ */
 (function () {
   'use strict';
@@ -46,55 +48,55 @@
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // Clear canvas
     ctx.clearRect(0, 0, W, H);
+    drawFullGrid();
   }
 
   window.addEventListener('resize', function () { if (ready) resize(); });
   initCanvas();
 
   /* ---------- ECG waveform ---------- */
-  // Normal sinus rhythm: P, Q, R, S, T waves via Gaussian harmonics
+  // P-QRS-T built from Gaussian harmonics (Fourier-style additive
+  // synthesis). Sigmas are tuned so each feature spans several
+  // pixels on screen at the sweep speed below:
+  //   beat = 0.8s (75bpm), sweep = 60px/s → one beat ≈ 48px wide.
   function gaussian(x, amp, ctr, sigma) {
     return amp * Math.exp(-Math.pow(x - ctr, 2) / (2 * sigma * sigma));
   }
 
   var waves = [
-    { amp: 0.15, ctr: 0.18, sigma: 0.05 },    // P wave
-    { amp: -0.10, ctr: 0.34, sigma: 0.012 },  // Q
-    { amp: 1.00, ctr: 0.37, sigma: 0.012 },   // R (tall spike)
-    { amp: -0.28, ctr: 0.40, sigma: 0.012 },  // S
-    { amp: 0.30, ctr: 0.62, sigma: 0.07 },     // T wave
+    { amp: 0.14, ctr: 0.16, sigma: 0.040 },  // P wave   (wide, low)
+    { amp: -0.08, ctr: 0.30, sigma: 0.018 }, // Q
+    { amp: 0.95, ctr: 0.335, sigma: 0.015 }, // R (sharp needle)
+    { amp: -0.22, ctr: 0.365, sigma: 0.018 },// S
+    { amp: 0.26, ctr: 0.56, sigma: 0.050 },  // T wave   (broad)
   ];
 
   var BPM = 75;
-  var beatInterval = 60 / BPM;  // seconds per beat
-  var jitter = 0.04;            // beat-to-beat variation
-  var noiseLevel = 0.006;
+  var beatInterval = 60 / BPM;   // 0.8s per beat
+  var jitter = 0.03;
+  var noiseLevel = 0.004;
 
-  // ECG time (seconds) — one full beat = beatInterval seconds
   var ecgTime = 0;
-  var nextBeatTime = 0;
+  var nextBeatTime = beatInterval;  // end of the current beat
 
+  // Value of the ECG at beat phase t (0..1)
   function ecgValue(t) {
-    // t: 0..1 within one beat
+    if (t < 0 || t > 1) return 0;
     var v = 0;
     for (var i = 0; i < waves.length; i++) {
       v += gaussian(t, waves[i].amp, waves[i].ctr, waves[i].sigma);
     }
-    v += (Math.random() - 0.5) * 2 * noiseLevel;
     return v;
   }
 
-  /* ---------- sweep cursor rendering ---------- */
-  // The cursor moves left→right at SWEEP_SPEED px/s.
-  // It draws the trace as it moves. When it reaches the right
-  // edge, it wraps to the left and clears a small gap ahead.
-  var SWEEP_SPEED = 30;   // px/s — slow, hospital-monitor feel
-  var GAP_WIDTH = 4;       // px — the "eraser" gap ahead of cursor
-  var sweepX = 0;           // current cursor x position (pixels)
-  var lastY = 0;            // last drawn y position
+  /* ---------- sweep cursor ---------- */
+  var SWEEP_SPEED = 60;   // px/s — one full sweep ~6s, one beat ~48px
+  var GAP_WIDTH = 3;       // px erased ahead of the cursor
+  var sweepX = 0;
   var lastTs = 0;
+
+  var traceY, ampPx;
 
   function frame(ts) {
     if (!ready || !ctx) return;
@@ -103,154 +105,144 @@
     var dt = Math.min((ts - lastTs) / 1000, 0.05);
     lastTs = ts;
 
-    // Advance ECG time
+    traceY = H * 0.55;
+    ampPx = H * 0.32;
+
+    // Advance ECG time; schedule next beat with jitter
+    var oldEcgTime = ecgTime;
     ecgTime += dt;
-    if (ecgTime >= nextBeatTime) {
+    while (ecgTime >= nextBeatTime) {
       var jit = 1 + (Math.random() - 0.5) * 2 * jitter;
       nextBeatTime += beatInterval * jit;
     }
-    // Beat phase 0..1
-    var beatPhase = (ecgTime - (nextBeatTime - beatInterval)) / beatInterval;
-    if (beatPhase < 0) beatPhase = 0;
-    if (beatPhase > 1) beatPhase = 1;
 
     // Advance sweep cursor
-    sweepX += SWEEP_SPEED * dt;
+    var oldX = sweepX;
+    var newX = sweepX + SWEEP_SPEED * dt;
 
-    // Wrap around
-    if (sweepX >= W) {
-      sweepX = 0;
-      lastY = 0;
-    }
+    // Beat start/end for phase interpolation
+    var beatStart = nextBeatTime - beatInterval;
 
-    // Y position of the trace at current cursor x
-    var traceY = H * 0.5;
-    var ampPx = H * 0.3;
-    var v = ecgValue(beatPhase);
-    var y = traceY - v * ampPx;
-
-    // --- Erase a small gap ahead of the cursor (the "fresh" area) ---
-    // This creates the classic hospital-monitor look where old trace
-    // is erased just before the cursor overwrites it.
-    var gapStart = sweepX;
-    var gapEnd = sweepX + GAP_WIDTH;
-    if (gapEnd >= W) {
-      // Gap wraps around — erase from sweepX to W, and 0 to overflow
-      ctx.clearRect(gapStart, 0, W - gapStart, H);
-      var overflow = gapEnd - W;
-      if (overflow > 0) ctx.clearRect(0, 0, overflow, H);
+    if (newX >= W) {
+      // Wrap: erase from oldX..W and 0..(newX-W)
+      ctx.clearRect(oldX, 0, W - oldX, H);
+      var over = newX - W;
+      ctx.clearRect(0, 0, over, H);
+      drawGridInRect(oldX, W);
+      drawGridInRect(0, over);
+      // Draw the trace tail on the right edge up to W
+      var tAtWrap = oldEcgTime + (W - oldX) / SWEEP_SPEED;
+      drawTraceSegment(oldX, W, oldEcgTime, tAtWrap, beatStart);
+      // Wrap cursor to left and draw the continuing fragment
+      sweepX = over;
+      drawTraceSegment(0, over, tAtWrap, ecgTime, beatStart);
     } else {
-      ctx.clearRect(gapStart, 0, GAP_WIDTH, H);
+      sweepX = newX;
+      // Erase gap ahead of cursor
+      var gapEnd = Math.min(newX + GAP_WIDTH, W);
+      ctx.clearRect(newX, 0, gapEnd - newX, H);
+      drawGridInRect(newX, gapEnd);
+      drawTraceSegment(oldX, newX, oldEcgTime, ecgTime, beatStart);
     }
 
-    // --- Draw the grid in the gap area (so grid isn't erased permanently) ---
-    drawGridInGap(gapStart, gapEnd);
-
-    // --- Draw trace from last position to current ---
-    if (sweepX > 0 && lastY !== 0) {
-      // Single crisp line — no blur layers
-      ctx.beginPath();
-      ctx.strokeStyle = '#22ff22';
-      ctx.globalAlpha = 1;
-      ctx.lineWidth = 1.5;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.moveTo(sweepX - SWEEP_SPEED * dt, lastY);
-      ctx.lineTo(sweepX, y);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-
-    // --- Draw the cursor dot (bright green dot at sweep position) ---
+    // Cursor dot (small crisp glow)
+    var phase = (ecgTime - beatStart) / beatInterval;
+    var v = ecgValue(phase);
+    var y = traceY - v * ampPx;
     ctx.save();
-    ctx.fillStyle = '#22ff22';
+    ctx.fillStyle = '#44ff44';
     ctx.shadowColor = '#22ff22';
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 5;
     ctx.beginPath();
-    ctx.arc(sweepX, y, 2.5, 0, Math.PI * 2);
+    ctx.arc(sweepX, y, 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-
-    lastY = y;
   }
 
-  // Draw grid only in the gap area (where we just erased)
-  function drawGridInGap(gapStart, gapEnd) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(34, 255, 34, 0.08)';
-    ctx.lineWidth = 1;
-    var step = 8;
-
-    // Handle wrap-around
-    var startX = Math.floor(gapStart / step) * step;
-    var endX = gapEnd;
-    if (gapEnd >= W) {
-      // Draw from gapStart to W
-      for (var x = startX; x < W; x += step) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-      }
-      // Draw from 0 to overflow
-      for (var x2 = 0; x2 < (gapEnd - W); x2 += step) {
-        ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, H); ctx.stroke();
-      }
-      // Horizontal lines in gap region
-      for (var y = 0; y < H; y += step) {
-        ctx.beginPath(); ctx.moveTo(gapStart, y); ctx.lineTo(W, y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(gapEnd - W, y); ctx.stroke();
-      }
-    } else {
-      for (var x3 = startX; x3 < endX; x3 += step) {
-        ctx.beginPath(); ctx.moveTo(x3, 0); ctx.lineTo(x3, H); ctx.stroke();
-      }
-      for (var y2 = 0; y2 < H; y2 += step) {
-        ctx.beginPath(); ctx.moveTo(gapStart, y2); ctx.lineTo(gapEnd, y2); ctx.stroke();
-      }
+  // Draw trace from x0..x1, with ECG time going t0..t1.
+  // Sub-sampled every ~0.4px so sharp peaks stay crisp.
+  function drawTraceSegment(x0, x1, t0, t1, beatStart) {
+    var dx = x1 - x0;
+    if (dx <= 0) return;
+    var steps = Math.max(1, Math.ceil(dx / 0.4));
+    ctx.beginPath();
+    ctx.strokeStyle = '#22ff22';
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
+    for (var i = 0; i <= steps; i++) {
+      var f = i / steps;
+      var x = x0 + dx * f;
+      var t = t0 + (t1 - t0) * f;
+      var ph = (t - beatStart) / beatInterval;
+      var v = 0;
+      if (ph >= 0 && ph <= 1) v = ecgValue(ph);
+      // tiny deterministic-free baseline noise
+      v += (Math.random() - 0.5) * 2 * noiseLevel;
+      var y = traceY - v * ampPx;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     }
+    ctx.stroke();
+  }
 
-    // Brighter major lines (every 5 steps)
-    ctx.strokeStyle = 'rgba(34, 255, 34, 0.14)';
-    var majorStep = step * 5;
-    var startMaj = Math.floor(gapStart / majorStep) * majorStep;
-    if (gapEnd >= W) {
-      for (var x4 = startMaj; x4 < W; x4 += majorStep) {
-        ctx.beginPath(); ctx.moveTo(x4, 0); ctx.lineTo(x4, H); ctx.stroke();
-      }
-      for (var x5 = 0; x5 < (gapEnd - W); x5 += majorStep) {
-        ctx.beginPath(); ctx.moveTo(x5, 0); ctx.lineTo(x5, H); ctx.stroke();
-      }
-    } else {
-      for (var x6 = startMaj; x6 < endX; x6 += majorStep) {
-        ctx.beginPath(); ctx.moveTo(x6, 0); ctx.lineTo(x6, H); ctx.stroke();
-      }
+  /* ---------- grid ---------- */
+  function gridLines(x0, x1) {
+    var step = 8;
+    var s = Math.ceil(x0 / step) * step;
+    for (var x = s; x < x1; x += step) {
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke();
+    }
+    for (var y = step; y < H; y += step) {
+      ctx.beginPath(); ctx.moveTo(x0, y + 0.5); ctx.lineTo(x1, y + 0.5); ctx.stroke();
+    }
+    // major lines every 5 steps
+    var ms = step * 5;
+    var sm = Math.ceil(x0 / ms) * ms;
+    for (var xm = sm; xm < x1; xm += ms) {
+      ctx.beginPath(); ctx.moveTo(xm + 0.5, 0); ctx.lineTo(xm + 0.5, H); ctx.stroke();
+    }
+  }
+
+  function drawGridInRect(x0, x1) {
+    if (x1 <= x0) return;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(34, 255, 34, 0.07)';
+    ctx.lineWidth = 1;
+    gridLines(x0, x1);
+    ctx.strokeStyle = 'rgba(34, 255, 34, 0.13)';
+    // reuse major-line pass only by faking step=40
+    var ms = 40;
+    var sm = Math.ceil(x0 / ms) * ms;
+    for (var xm = sm; xm < x1; xm += ms) {
+      ctx.beginPath(); ctx.moveTo(xm + 0.5, 0); ctx.lineTo(xm + 0.5, H); ctx.stroke();
     }
     ctx.restore();
   }
 
-  // Draw initial full grid
   function drawFullGrid() {
     ctx.save();
-    ctx.strokeStyle = 'rgba(34, 255, 34, 0.08)';
+    ctx.strokeStyle = 'rgba(34, 255, 34, 0.07)';
     ctx.lineWidth = 1;
     var step = 8;
-    for (var x = 0; x < W; x += step) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    for (var x = step; x < W; x += step) {
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke();
     }
-    for (var y = 0; y < H; y += step) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    for (var y = step; y < H; y += step) {
+      ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(34, 255, 34, 0.14)';
-    for (var x2 = 0; x2 < W; x2 += step * 5) {
-      ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, H); ctx.stroke();
+    ctx.strokeStyle = 'rgba(34, 255, 34, 0.13)';
+    for (var xm = step * 5; xm < W; xm += step * 5) {
+      ctx.beginPath(); ctx.moveTo(xm + 0.5, 0); ctx.lineTo(xm + 0.5, H); ctx.stroke();
     }
-    for (var y2 = 0; y2 < H; y2 += step * 5) {
-      ctx.beginPath(); ctx.moveTo(0, y2); ctx.lineTo(W, y2); ctx.stroke();
+    for (var ym = step * 5; ym < H; ym += step * 5) {
+      ctx.beginPath(); ctx.moveTo(0, ym + 0.5); ctx.lineTo(W, ym + 0.5); ctx.stroke();
     }
     ctx.restore();
   }
 
-  /* ---------- start loop ---------- */
+  /* ---------- loop ---------- */
   function startLoop() {
-    drawFullGrid();
     var ecgRAF = window.requestAnimationFrame || function (cb) {
       setTimeout(function () { cb(performance.now()); }, 16);
     };
