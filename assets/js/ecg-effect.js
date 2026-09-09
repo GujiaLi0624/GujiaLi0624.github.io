@@ -150,7 +150,7 @@
   // the whole canvas left. The buffer holds the waveform samples.
   const SAMPLE_RATE = 250;          // Hz (samples per second of simulated ECG)
   const PX_PER_SEC = cfg.speed || 200; // pixels scrolled per second of ECG time
-  const baseline = () => H * 0.55;  // vertical centre of the trace
+  const baseline = () => H * 0.38;  // vertical position of the trace (upper area)
 
   // Circular sample buffer — holds enough for one screen width
   const bufLen = Math.ceil(W * 3);   // 3x width for margin
@@ -302,8 +302,8 @@
 
     // Glow layers: draw 3 passes with decreasing blur for neon effect
     for (let pass = 0; pass < 3; pass++) {
-      const lw = pass === 0 ? 6 : pass === 1 ? 3 : 1.5;
-      const alpha = pass === 0 ? 0.12 : pass === 1 ? 0.35 : 1.0;
+      const lw = pass === 0 ? 8 : pass === 1 ? 4 : 2;
+      const alpha = pass === 0 ? 0.25 : pass === 1 ? 0.55 : 1.0;
       ctx.beginPath();
       ctx.strokeStyle = curColor;
       ctx.globalAlpha = alpha;
@@ -331,7 +331,7 @@
 
   function drawGrid() {
     ctx.save();
-    ctx.strokeStyle = 'rgba(0, 255, 100, 0.04)';
+    ctx.strokeStyle = 'rgba(0, 255, 100, 0.08)';
     ctx.lineWidth = 1;
     const step = 20;
     for (let x = 0; x < W; x += step) {
@@ -341,7 +341,7 @@
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
     // brighter major lines
-    ctx.strokeStyle = 'rgba(0, 255, 100, 0.08)';
+    ctx.strokeStyle = 'rgba(0, 255, 100, 0.15)';
     for (let x = 0; x < W; x += step * 5) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
@@ -355,14 +355,14 @@
     ctx.save();
     ctx.font = '11px ui-monospace, Consolas, monospace';
     ctx.fillStyle = curColor;
-    ctx.globalAlpha = 0.8;
+    ctx.globalAlpha = 1;
     ctx.shadowColor = curColor;
-    ctx.shadowBlur = 4;
+    ctx.shadowBlur = 6;
     ctx.fillText('● ' + rhythm.name, 14, 28);
     const bpm = rhythm.bpm > 0 ? Math.round(rhythm.bpm) + ' bpm' : '— bpm';
     ctx.fillText(bpm, 14, 44);
     ctx.shadowBlur = 0;
-    ctx.globalAlpha = 0.4;
+    ctx.globalAlpha = 0.6;
     ctx.fillStyle = curColor;
     ctx.fillText('LEAD II', 14, H - 20);
     ctx.restore();

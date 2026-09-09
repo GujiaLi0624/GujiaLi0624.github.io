@@ -123,11 +123,11 @@ body {
   top: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.85;
-  filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.15));
+  opacity: 1;
+  filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.5));
 }
 @media (max-width: 900px) {
-  .ecg-canvas { opacity: 0.4; }
+  .ecg-canvas { opacity: 0.5; }
 }
 @media (max-width: 600px) {
   .ecg-canvas { display: none; }
