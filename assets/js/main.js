@@ -59,7 +59,7 @@ function renderHero(C) {
     contact +
     '    <p class="hero-typing"><span id="typing-text"></span><span class="type-caret"></span></p>' +
     '    <div class="hero-socials">' + socials + '</div>' +
-    '    <div class="ecg-box" id="ecg-box"></div>' +
+    '    <div class="matrix-box" id="matrix-box"></div>' +
     '  </div>' +
     '  <div class="scroll-hint">' + esc(h.scrollHint || '') + '</div>' +
     '</section>';

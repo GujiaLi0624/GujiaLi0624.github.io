@@ -116,22 +116,22 @@ body {
   .music-panel { left: auto; right: 10px; }
 }
 
-/* ---------- ECG monitor box (in hero) ---------- */
-.ecg-box {
+/* ---------- Matrix data-stream box (in hero) ---------- */
+.matrix-box {
   width: 360px;
   max-width: 90vw;
   height: 110px;
   margin: 22px auto 0;
-  border: 1px solid rgba(0, 255, 136, 0.25);
+  border: 1px solid rgba(0, 255, 120, 0.28);
   border-radius: 10px;
-  background: rgba(0, 12, 8, 0.6);
+  background: #020a05;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 0 12px rgba(0, 255, 136, 0.08), inset 0 0 30px rgba(0, 255, 136, 0.03);
+  box-shadow: 0 0 14px rgba(0, 255, 120, 0.10), inset 0 0 30px rgba(0, 255, 120, 0.05);
 }
-.ecg-canvas { display: block; width: 100%; height: 100%; }
+.matrix-canvas { display: block; width: 100%; height: 100%; }
 @media (max-width: 600px) {
-  .ecg-box { width: 280px; height: 80px; }
+  .matrix-box { width: 280px; height: 80px; }
 }
 
 /* ---------- Repository ---------- */

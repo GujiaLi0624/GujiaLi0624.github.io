@@ -62,10 +62,13 @@ window.SITE_CONFIG = {
     defaultVolume: 0.4, // 0~1
   },
 
-  /* ---------- ECG cardiac monitor effect (left side) ---------- */
-  ecgEffect: {
+  /* ---------- Matrix hacker data-stream effect (hero box) ---------- */
+  matrixEffect: {
     enabled: true,
-    speed: 60,       // sweep cursor speed (px/s) — one beat ≈ 48px
+    fontSize: 14,    // Glyph size (px)
+    speedMin: 6,     // Slowest column fall speed (rows/second)
+    speedMax: 16,    // Fastest column fall speed (rows/second)
+    fadeAlpha: 0.14, // Trail decay per frame at 60fps (higher = shorter trails)
   },
 
   /* ---------- DNA base-pair effect (can be turned off) ---------- */
