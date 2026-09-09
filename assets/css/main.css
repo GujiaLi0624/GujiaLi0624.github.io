@@ -116,6 +116,23 @@ body {
   .music-panel { left: auto; right: 10px; }
 }
 
+/* ---------- ECG canvas (left side) ---------- */
+.ecg-canvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.15));
+}
+@media (max-width: 900px) {
+  .ecg-canvas { opacity: 0.4; }
+}
+@media (max-width: 600px) {
+  .ecg-canvas { display: none; }
+}
+
 /* ---------- Repository ---------- */
 .repo-loading { color: var(--muted); text-align: center; padding: 30px; }
 .repo-grid { display: flex; flex-direction: column; gap: 8px; }
