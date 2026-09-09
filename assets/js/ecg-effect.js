@@ -11,14 +11,8 @@
  *   coefficients (amplitude, centre, width) are tuned per rhythm.
  *
  * Rhythm cycle:
- *   1. Normal sinus rhythm (steady P-QRS-T at ~75 bpm)
- *   2. Sinus tachycardia (faster ~130 bpm, taller R)
- *   3. Sinus bradycardia (slower ~45 bpm, flatter T)
- *   4. Atrial fibrillation (irregular, no P, noisy baseline)
- *   5. Ventricular tachycardia (wide QRS, no P/T)
- *   6. Ventricular fibrillation (chaotic, low amplitude)
- *   7. Asystole — flatline (only baseline noise)
- *   → loop back to normal
+ *   Steady normal sinus rhythm at ~75 bpm with P-QRS-T waves.
+ *   Continuous green trace with natural beat-to-beat variation.
  *
  * Dependency: window.SITE_CONFIG.ecgEffect; set enabled:false to turn off.
  * ============================================================ */
@@ -76,88 +70,22 @@
     return amp * Math.exp(-Math.pow(x - ctr, 2) / (2 * sigma * sigma));
   }
 
-  var rhythms = [
-    {
-      name: 'Normal Sinus Rhythm',
-      bpm: 75, jitter: 0.04,
-      waves: [
-        { amp: 0.15, ctr: 0.18, sigma: 0.05 },
-        { amp: -0.10, ctr: 0.34, sigma: 0.012 },
-        { amp: 1.00, ctr: 0.37, sigma: 0.012 },
-        { amp: -0.28, ctr: 0.40, sigma: 0.012 },
-        { amp: 0.30, ctr: 0.62, sigma: 0.07 },
-      ],
-      noise: 0.008,
-      color: '#00ff88',
-    },
-    {
-      name: 'Sinus Tachycardia',
-      bpm: 130, jitter: 0.03,
-      waves: [
-        { amp: 0.12, ctr: 0.18, sigma: 0.05 },
-        { amp: -0.10, ctr: 0.34, sigma: 0.012 },
-        { amp: 1.15, ctr: 0.37, sigma: 0.012 },
-        { amp: -0.30, ctr: 0.40, sigma: 0.012 },
-        { amp: 0.22, ctr: 0.60, sigma: 0.06 },
-      ],
-      noise: 0.012,
-      color: '#00ff66',
-    },
-    {
-      name: 'Sinus Bradycardia',
-      bpm: 45, jitter: 0.05,
-      waves: [
-        { amp: 0.18, ctr: 0.15, sigma: 0.055 },
-        { amp: -0.08, ctr: 0.30, sigma: 0.012 },
-        { amp: 0.88, ctr: 0.33, sigma: 0.012 },
-        { amp: -0.25, ctr: 0.36, sigma: 0.012 },
-        { amp: 0.35, ctr: 0.58, sigma: 0.08 },
-      ],
-      noise: 0.006,
-      color: '#33ffaa',
-    },
-    {
-      name: 'Atrial Fibrillation',
-      bpm: 95, jitter: 0.35,
-      waves: [
-        { amp: -0.10, ctr: 0.35, sigma: 0.014 },
-        { amp: 0.95, ctr: 0.38, sigma: 0.014 },
-        { amp: -0.28, ctr: 0.41, sigma: 0.014 },
-        { amp: 0.18, ctr: 0.60, sigma: 0.06 },
-      ],
-      noise: 0.03,
-      color: '#88ff44',
-    },
-    {
-      name: 'Ventricular Tachycardia',
-      bpm: 180, jitter: 0.02,
-      waves: [
-        { amp: -0.40, ctr: 0.25, sigma: 0.06 },
-        { amp: 0.80, ctr: 0.38, sigma: 0.08 },
-        { amp: -0.50, ctr: 0.52, sigma: 0.06 },
-      ],
-      noise: 0.02,
-      color: '#ffaa00',
-    },
-    {
-      name: 'Ventricular Fibrillation',
-      bpm: 250, jitter: 0.5,
-      waves: [
-        { amp: 0.25, ctr: 0.30, sigma: 0.15 },
-        { amp: -0.20, ctr: 0.55, sigma: 0.12 },
-        { amp: 0.15, ctr: 0.75, sigma: 0.10 },
-      ],
-      noise: 0.06,
-      color: '#ff6600',
-    },
-    {
-      name: 'Asystole',
-      bpm: 0, jitter: 0,
-      waves: [],
-      noise: 0.004,
-      color: '#ff0000',
-    },
-  ];
+  // Normal sinus rhythm only — steady 75 bpm, green
+  var rhythm = {
+    name: 'Normal Sinus Rhythm',
+    bpm: 75,
+    jitter: 0.04,
+    waves: [
+      { amp: 0.15, ctr: 0.18, sigma: 0.05 },   // P wave
+      { amp: -0.10, ctr: 0.34, sigma: 0.012 }, // Q
+      { amp: 1.00, ctr: 0.37, sigma: 0.012 },  // R (tall spike)
+      { amp: -0.28, ctr: 0.40, sigma: 0.012 }, // S
+      { amp: 0.30, ctr: 0.62, sigma: 0.07 },   // T wave
+    ],
+    noise: 0.008,
+    color: '#00ff88',
+  };
+  var curColor = rhythm.color;
 
   /* ---------- scrolling buffer ---------- */
   var SAMPLE_RATE = 250;
@@ -169,28 +97,7 @@
   var ecgTime = 0;
   var nextBeatTime = 0;
   var beatCount = 0;
-  var beatInterval = 60 / rhythms[0].bpm;
-
-  var stageIdx = 0;
-  var stageStart = 0;
-  var stageDuration = 0;
-  var rhythm = rhythms[0];
-  var curColor = rhythm.color;
-  var curAmpScale = 1;
-
-  function startStage(idx) {
-    stageIdx = idx;
-    rhythm = rhythms[idx];
-    stageStart = performance.now() / 1000;
-    if (idx === 0) stageDuration = 10;
-    else if (idx >= 4) stageDuration = 6;
-    else stageDuration = 8;
-    beatInterval = rhythm.bpm > 0 ? 60 / rhythm.bpm : 1.0;
-    nextBeatTime = 0;
-    ecgTime = 0;
-    beatCount = 0;
-  }
-  startStage(0);
+  var beatInterval = 60 / rhythm.bpm;
 
   function hexToRgb(hex) {
     var v = parseInt(hex.replace('#', ''), 16);
@@ -222,17 +129,6 @@
     if (!lastTs) lastTs = ts;
     var dt = Math.min((ts - lastTs) / 1000, 0.05);
     lastTs = ts;
-    var now = ts / 1000;
-
-    if (now - stageStart > stageDuration) {
-      var next = stageIdx + 1;
-      if (next >= rhythms.length) startStage(0);
-      else startStage(next);
-    }
-
-    curColor = lerpColor(curColor, rhythm.color, 0.02);
-    var targetAmp = rhythm.name === 'Asystole' ? 0 : 1;
-    curAmpScale += (targetAmp - curAmpScale) * 0.03;
 
     var samplesToGen = Math.ceil(dt * SAMPLE_RATE);
     var pxPerSample = PX_PER_SEC / SAMPLE_RATE;
@@ -250,9 +146,9 @@
         : 0;
       var sample;
       if (rhythm.bpm > 0 && beatPhase >= 0 && beatPhase <= 1) {
-        sample = ecgSample(beatPhase, rhythm) * curAmpScale;
+        sample = ecgSample(beatPhase, rhythm);
       } else if (rhythm.bpm > 0 && beatPhase > 1) {
-        sample = (Math.random() - 0.5) * 2 * rhythm.noise * curAmpScale;
+        sample = (Math.random() - 0.5) * 2 * rhythm.noise;
       } else {
         sample = (Math.random() - 0.5) * 2 * rhythm.noise;
       }
