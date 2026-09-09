@@ -72,8 +72,8 @@
     { amp: 0.26, ctr: 0.56, sigma: 0.050 },  // T wave   (broad)
   ];
 
-  var BPM = 75;
-  var beatInterval = 60 / BPM;   // 0.8s per beat
+  var BPM = 55;
+  var beatInterval = 60 / BPM;   // ~1.09s per beat — relaxed spacing
   var jitter = 0.03;
   var noiseLevel = 0.004;
 
@@ -91,7 +91,7 @@
   }
 
   /* ---------- sweep cursor ---------- */
-  var SWEEP_SPEED = 60;   // px/s — one full sweep ~6s, one beat ~48px
+  var SWEEP_SPEED = 60;   // px/s — one beat ≈ 65px with ~55bpm
   var GAP_WIDTH = 3;       // px erased ahead of the cursor
   var sweepX = 0;
   var lastTs = 0;
