@@ -1,18 +1,13 @@
 /* ============================================================
- * ECG / EKG effect — Fourier-series cardiac monitor (Canvas)
+ * ECG / EKG effect — Hospital monitor style (Canvas)
  *
- * A small framed ECG monitor embedded in the hero section,
- * between the social links and the scroll hint.
+ * A small framed ECG monitor embedded in the hero section.
+ * Uses a sweep cursor: a bright dot moves left→right drawing
+ * the waveform in real-time. Old trace stays visible until the
+ * cursor wraps around and overwrites it. Just like a real
+ * hospital cardiac monitor.
  *
- * Fourier-synthesis approach:
- *   Each cardiac beat is built by summing Gaussian "harmonics" —
- *   one for each wave component (P, Q, R, S, T). This is additive
- *   synthesis, the time-domain dual of a Fourier series. The
- *   coefficients (amplitude, centre, width) are tuned per rhythm.
- *
- * Rhythm cycle:
- *   Steady normal sinus rhythm at ~75 bpm with P-QRS-T waves.
- *   Continuous green trace with natural beat-to-beat variation.
+ * Rhythm: normal sinus rhythm at 75 bpm with P-QRS-T waves.
  *
  * Dependency: window.SITE_CONFIG.ecgEffect; set enabled:false to turn off.
  * ============================================================ */
@@ -26,14 +21,9 @@
   var W = 0, H = 0, dpr = 1;
   var ready = false;
 
-  // Wait for the hero ECG container to be created by main.js
   function initCanvas() {
     var container = document.getElementById('ecg-box');
-    if (!container) {
-      // Container not ready yet — retry shortly
-      setTimeout(initCanvas, 100);
-      return;
-    }
+    if (!container) { setTimeout(initCanvas, 100); return; }
     container.innerHTML = '';
     canvas = document.createElement('canvas');
     canvas.className = 'ecg-canvas';
@@ -50,78 +40,61 @@
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     var container = canvas.parentElement;
     W = container.clientWidth || 360;
-    H = container.clientHeight || 120;
+    H = container.clientHeight || 110;
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // Recompute ring buffer for new width
-    bufLen = Math.ceil(W * 3);
-    ring = new Float32Array(bufLen);
-    writePos = 0;
+    // Clear canvas
+    ctx.clearRect(0, 0, W, H);
   }
 
   window.addEventListener('resize', function () { if (ready) resize(); });
   initCanvas();
 
-  /* ---------- rhythm definitions ---------- */
+  /* ---------- ECG waveform ---------- */
+  // Normal sinus rhythm: P, Q, R, S, T waves via Gaussian harmonics
   function gaussian(x, amp, ctr, sigma) {
     return amp * Math.exp(-Math.pow(x - ctr, 2) / (2 * sigma * sigma));
   }
 
-  // Normal sinus rhythm only — steady 75 bpm, bright green
-  var rhythm = {
-    name: 'Normal Sinus Rhythm',
-    bpm: 75,
-    jitter: 0.04,
-    waves: [
-      { amp: 0.15, ctr: 0.18, sigma: 0.05 },   // P wave
-      { amp: -0.10, ctr: 0.34, sigma: 0.012 }, // Q
-      { amp: 1.00, ctr: 0.37, sigma: 0.012 },  // R (tall spike)
-      { amp: -0.28, ctr: 0.40, sigma: 0.012 }, // S
-      { amp: 0.30, ctr: 0.62, sigma: 0.07 },   // T wave
-    ],
-    noise: 0.008,
-    color: '#22ff22',
-  };
-  var curColor = rhythm.color;
+  var waves = [
+    { amp: 0.15, ctr: 0.18, sigma: 0.05 },    // P wave
+    { amp: -0.10, ctr: 0.34, sigma: 0.012 },  // Q
+    { amp: 1.00, ctr: 0.37, sigma: 0.012 },   // R (tall spike)
+    { amp: -0.28, ctr: 0.40, sigma: 0.012 },  // S
+    { amp: 0.30, ctr: 0.62, sigma: 0.07 },     // T wave
+  ];
 
-  /* ---------- scrolling buffer ---------- */
-  var SAMPLE_RATE = 250;
-  var PX_PER_SEC = cfg.speed || 80;   // slow: ~80px/s so each beat is visible
-  var bufLen = 1200;
-  var ring = new Float32Array(bufLen);
-  var writePos = 0;
+  var BPM = 75;
+  var beatInterval = 60 / BPM;  // seconds per beat
+  var jitter = 0.04;            // beat-to-beat variation
+  var noiseLevel = 0.006;
 
+  // ECG time (seconds) — one full beat = beatInterval seconds
   var ecgTime = 0;
   var nextBeatTime = 0;
-  var beatCount = 0;
-  var beatInterval = 60 / rhythm.bpm;
 
-  function hexToRgb(hex) {
-    var v = parseInt(hex.replace('#', ''), 16);
-    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
-  }
-  function lerpColor(c1, c2, t) {
-    var a = hexToRgb(c1), b = hexToRgb(c2);
-    return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * t) + ',' +
-      Math.round(a[1] + (b[1] - a[1]) * t) + ',' +
-      Math.round(a[2] + (b[2] - a[2]) * t) + ')';
-  }
-
-  function ecgSample(t, rhy) {
+  function ecgValue(t) {
+    // t: 0..1 within one beat
     var v = 0;
-    for (var i = 0; i < rhy.waves.length; i++) {
-      v += gaussian(t, rhy.waves[i].amp, rhy.waves[i].ctr, rhy.waves[i].sigma);
+    for (var i = 0; i < waves.length; i++) {
+      v += gaussian(t, waves[i].amp, waves[i].ctr, waves[i].sigma);
     }
-    v += (Math.random() - 0.5) * 2 * rhy.noise;
+    v += (Math.random() - 0.5) * 2 * noiseLevel;
     return v;
   }
 
-  /* ---------- animation loop ---------- */
+  /* ---------- sweep cursor rendering ---------- */
+  // The cursor moves left→right at SWEEP_SPEED px/s.
+  // It draws the trace as it moves. When it reaches the right
+  // edge, it wraps to the left and clears a small gap ahead.
+  var SWEEP_SPEED = 30;   // px/s — slow, hospital-monitor feel
+  var GAP_WIDTH = 4;       // px — the "eraser" gap ahead of cursor
+  var sweepX = 0;           // current cursor x position (pixels)
+  var lastY = 0;            // last drawn y position
   var lastTs = 0;
-  var scrollOffset = 0;
 
   function frame(ts) {
     if (!ready || !ctx) return;
@@ -130,68 +103,138 @@
     var dt = Math.min((ts - lastTs) / 1000, 0.05);
     lastTs = ts;
 
-    var samplesToGen = Math.ceil(dt * SAMPLE_RATE);
-    var pxPerSample = PX_PER_SEC / SAMPLE_RATE;
+    // Advance ECG time
+    ecgTime += dt;
+    if (ecgTime >= nextBeatTime) {
+      var jit = 1 + (Math.random() - 0.5) * 2 * jitter;
+      nextBeatTime += beatInterval * jit;
+    }
+    // Beat phase 0..1
+    var beatPhase = (ecgTime - (nextBeatTime - beatInterval)) / beatInterval;
+    if (beatPhase < 0) beatPhase = 0;
+    if (beatPhase > 1) beatPhase = 1;
 
-    for (var i = 0; i < samplesToGen; i++) {
-      var subDt = dt / samplesToGen;
-      ecgTime += subDt;
-      if (rhythm.bpm > 0 && ecgTime >= nextBeatTime) {
-        beatCount++;
-        var jit = 1 + (Math.random() - 0.5) * 2 * rhythm.jitter;
-        nextBeatTime += beatInterval * jit;
-      }
-      var beatPhase = rhythm.bpm > 0
-        ? (ecgTime - (nextBeatTime - beatInterval)) / beatInterval
-        : 0;
-      var sample;
-      if (rhythm.bpm > 0 && beatPhase >= 0 && beatPhase <= 1) {
-        sample = ecgSample(beatPhase, rhythm);
-      } else if (rhythm.bpm > 0 && beatPhase > 1) {
-        sample = (Math.random() - 0.5) * 2 * rhythm.noise;
-      } else {
-        sample = (Math.random() - 0.5) * 2 * rhythm.noise;
-      }
-      ring[writePos] = sample;
-      writePos = (writePos + 1) % bufLen;
+    // Advance sweep cursor
+    sweepX += SWEEP_SPEED * dt;
+
+    // Wrap around
+    if (sweepX >= W) {
+      sweepX = 0;
+      lastY = 0;
     }
 
-    scrollOffset += dt * PX_PER_SEC;
-    var wholePx = Math.floor(scrollOffset);
-    scrollOffset -= wholePx;
-
-    ctx.clearRect(0, 0, W, H);
-    drawGrid();
-
+    // Y position of the trace at current cursor x
     var traceY = H * 0.5;
     var ampPx = H * 0.3;
-    var readStart = (writePos - Math.ceil(W / pxPerSample) - 1 + bufLen * 10) % bufLen;
+    var v = ecgValue(beatPhase);
+    var y = traceY - v * ampPx;
 
-    for (var pass = 0; pass < 3; pass++) {
-      var lw = pass === 0 ? 5 : pass === 1 ? 2.5 : 1.2;
-      var alpha = pass === 0 ? 0.15 : pass === 1 ? 0.4 : 1.0;
-      ctx.beginPath();
-      ctx.strokeStyle = curColor;
-      ctx.globalAlpha = alpha;
-      ctx.lineWidth = lw;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      var started = false;
-      var numSamples = Math.ceil(W / pxPerSample);
-      for (var s = 0; s <= numSamples; s++) {
-        var idx = (readStart + s + bufLen) % bufLen;
-        var v = ring[idx];
-        var x = (s * pxPerSample) - (scrollOffset * pxPerSample);
-        var y = traceY - v * ampPx;
-        if (!started) { ctx.moveTo(x, y); started = true; }
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
+    // --- Erase a small gap ahead of the cursor (the "fresh" area) ---
+    // This creates the classic hospital-monitor look where old trace
+    // is erased just before the cursor overwrites it.
+    var gapStart = sweepX;
+    var gapEnd = sweepX + GAP_WIDTH;
+    if (gapEnd >= W) {
+      // Gap wraps around — erase from sweepX to W, and 0 to overflow
+      ctx.clearRect(gapStart, 0, W - gapStart, H);
+      var overflow = gapEnd - W;
+      if (overflow > 0) ctx.clearRect(0, 0, overflow, H);
+    } else {
+      ctx.clearRect(gapStart, 0, GAP_WIDTH, H);
     }
-    ctx.globalAlpha = 1;
+
+    // --- Draw the grid in the gap area (so grid isn't erased permanently) ---
+    drawGridInGap(gapStart, gapEnd);
+
+    // --- Draw trace from last position to current ---
+    if (sweepX > 0 && lastY !== 0) {
+      // Glow layers
+      var passes = [
+        { lw: 5, alpha: 0.12 },
+        { lw: 2.5, alpha: 0.4 },
+        { lw: 1.2, alpha: 1.0 },
+      ];
+      for (var p = 0; p < passes.length; p++) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#22ff22';
+        ctx.globalAlpha = passes[p].alpha;
+        ctx.lineWidth = passes[p].lw;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.moveTo(sweepX - SWEEP_SPEED * dt, lastY);
+        ctx.lineTo(sweepX, y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // --- Draw the cursor dot (bright green dot at sweep position) ---
+    ctx.save();
+    ctx.fillStyle = '#22ff22';
+    ctx.shadowColor = '#22ff22';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(sweepX, y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    lastY = y;
   }
 
-  function drawGrid() {
+  // Draw grid only in the gap area (where we just erased)
+  function drawGridInGap(gapStart, gapEnd) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(34, 255, 34, 0.08)';
+    ctx.lineWidth = 1;
+    var step = 16;
+
+    // Handle wrap-around
+    var startX = Math.floor(gapStart / step) * step;
+    var endX = gapEnd;
+    if (gapEnd >= W) {
+      // Draw from gapStart to W
+      for (var x = startX; x < W; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      // Draw from 0 to overflow
+      for (var x2 = 0; x2 < (gapEnd - W); x2 += step) {
+        ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, H); ctx.stroke();
+      }
+      // Horizontal lines in gap region
+      for (var y = 0; y < H; y += step) {
+        ctx.beginPath(); ctx.moveTo(gapStart, y); ctx.lineTo(W, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(gapEnd - W, y); ctx.stroke();
+      }
+    } else {
+      for (var x3 = startX; x3 < endX; x3 += step) {
+        ctx.beginPath(); ctx.moveTo(x3, 0); ctx.lineTo(x3, H); ctx.stroke();
+      }
+      for (var y2 = 0; y2 < H; y2 += step) {
+        ctx.beginPath(); ctx.moveTo(gapStart, y2); ctx.lineTo(gapEnd, y2); ctx.stroke();
+      }
+    }
+
+    // Brighter major lines (every 5 steps)
+    ctx.strokeStyle = 'rgba(34, 255, 34, 0.14)';
+    var majorStep = step * 5;
+    var startMaj = Math.floor(gapStart / majorStep) * majorStep;
+    if (gapEnd >= W) {
+      for (var x4 = startMaj; x4 < W; x4 += majorStep) {
+        ctx.beginPath(); ctx.moveTo(x4, 0); ctx.lineTo(x4, H); ctx.stroke();
+      }
+      for (var x5 = 0; x5 < (gapEnd - W); x5 += majorStep) {
+        ctx.beginPath(); ctx.moveTo(x5, 0); ctx.lineTo(x5, H); ctx.stroke();
+      }
+    } else {
+      for (var x6 = startMaj; x6 < endX; x6 += majorStep) {
+        ctx.beginPath(); ctx.moveTo(x6, 0); ctx.lineTo(x6, H); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // Draw initial full grid
+  function drawFullGrid() {
     ctx.save();
     ctx.strokeStyle = 'rgba(34, 255, 34, 0.08)';
     ctx.lineWidth = 1;
@@ -212,24 +255,9 @@
     ctx.restore();
   }
 
-  function drawLabel() {
-    ctx.save();
-    ctx.font = '10px ui-monospace, Consolas, monospace';
-    ctx.fillStyle = curColor;
-    ctx.globalAlpha = 0.9;
-    ctx.shadowColor = curColor;
-    ctx.shadowBlur = 3;
-    ctx.fillText('● ' + rhythm.name, 10, 16);
-    var bpm = rhythm.bpm > 0 ? Math.round(rhythm.bpm) + ' bpm' : '— bpm';
-    ctx.fillText(bpm, 10, 30);
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 0.5;
-    ctx.fillText('LEAD II', W - 56, 16);
-    ctx.restore();
-  }
-
   /* ---------- start loop ---------- */
   function startLoop() {
+    drawFullGrid();
     var ecgRAF = window.requestAnimationFrame || function (cb) {
       setTimeout(function () { cb(performance.now()); }, 16);
     };
