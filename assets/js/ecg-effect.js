@@ -148,23 +148,16 @@
 
     // --- Draw trace from last position to current ---
     if (sweepX > 0 && lastY !== 0) {
-      // Glow layers
-      var passes = [
-        { lw: 5, alpha: 0.12 },
-        { lw: 2.5, alpha: 0.4 },
-        { lw: 1.2, alpha: 1.0 },
-      ];
-      for (var p = 0; p < passes.length; p++) {
-        ctx.beginPath();
-        ctx.strokeStyle = '#22ff22';
-        ctx.globalAlpha = passes[p].alpha;
-        ctx.lineWidth = passes[p].lw;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.moveTo(sweepX - SWEEP_SPEED * dt, lastY);
-        ctx.lineTo(sweepX, y);
-        ctx.stroke();
-      }
+      // Single crisp line — no blur layers
+      ctx.beginPath();
+      ctx.strokeStyle = '#22ff22';
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(sweepX - SWEEP_SPEED * dt, lastY);
+      ctx.lineTo(sweepX, y);
+      ctx.stroke();
       ctx.globalAlpha = 1;
     }
 
@@ -186,7 +179,7 @@
     ctx.save();
     ctx.strokeStyle = 'rgba(34, 255, 34, 0.08)';
     ctx.lineWidth = 1;
-    var step = 16;
+    var step = 8;
 
     // Handle wrap-around
     var startX = Math.floor(gapStart / step) * step;
@@ -238,7 +231,7 @@
     ctx.save();
     ctx.strokeStyle = 'rgba(34, 255, 34, 0.08)';
     ctx.lineWidth = 1;
-    var step = 16;
+    var step = 8;
     for (var x = 0; x < W; x += step) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
