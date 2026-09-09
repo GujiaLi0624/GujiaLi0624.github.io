@@ -41,13 +41,16 @@
     if (!canvas) return;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     var container = canvas.parentElement;
-    W = container.clientWidth || 360;
-    H = container.clientHeight || 110;
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
+    // Round to integer CSS px so the backing store maps 1:1 to screen
+    // (fractional CSS size forces the browser to rescale the bitmap → blur).
+    W = Math.round(container.clientWidth || 360);
+    H = Math.round(container.clientHeight || 110);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, W, H);
     drawFullGrid();
   }
@@ -66,9 +69,9 @@
 
   var waves = [
     { amp: 0.14, ctr: 0.16, sigma: 0.040 },  // P wave   (wide, low)
-    { amp: -0.08, ctr: 0.30, sigma: 0.018 }, // Q
-    { amp: 0.95, ctr: 0.335, sigma: 0.015 }, // R (sharp needle)
-    { amp: -0.22, ctr: 0.365, sigma: 0.018 },// S
+    { amp: -0.08, ctr: 0.30, sigma: 0.022 }, // Q
+    { amp: 0.95, ctr: 0.335, sigma: 0.020 }, // R (sharp needle, clean walls)
+    { amp: -0.22, ctr: 0.37, sigma: 0.022 }, // S
     { amp: 0.26, ctr: 0.56, sigma: 0.050 },  // T wave   (broad)
   ];
 
@@ -160,16 +163,19 @@
   }
 
   // Draw trace from x0..x1, with ECG time going t0..t1.
-  // Sub-sampled every ~0.4px so sharp peaks stay crisp.
+  // Sub-sampled every 0.5 device pixel so sharp peaks stay crisp.
+  // NO random noise on the line — per-sample noise jaggs the steep
+  // QRS walls into fuzzy parallel strokes under anti-aliasing.
   function drawTraceSegment(x0, x1, t0, t1, beatStart) {
     var dx = x1 - x0;
     if (dx <= 0) return;
-    var steps = Math.max(1, Math.ceil(dx / 0.4));
+    var steps = Math.max(1, Math.ceil(dx * dpr / 0.5));
     ctx.beginPath();
-    ctx.strokeStyle = '#22ff22';
-    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = '#2bff2b';
+    ctx.lineWidth = 1.4;
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'miter';
+    ctx.miterLimit = 4;
     for (var i = 0; i <= steps; i++) {
       var f = i / steps;
       var x = x0 + dx * f;
@@ -177,8 +183,6 @@
       var ph = (t - beatStart) / beatInterval;
       var v = 0;
       if (ph >= 0 && ph <= 1) v = ecgValue(ph);
-      // tiny deterministic-free baseline noise
-      v += (Math.random() - 0.5) * 2 * noiseLevel;
       var y = traceY - v * ampPx;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
