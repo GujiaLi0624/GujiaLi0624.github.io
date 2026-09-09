@@ -70,7 +70,7 @@
     return amp * Math.exp(-Math.pow(x - ctr, 2) / (2 * sigma * sigma));
   }
 
-  // Normal sinus rhythm only — steady 75 bpm, green
+  // Normal sinus rhythm only — steady 75 bpm, bright green
   var rhythm = {
     name: 'Normal Sinus Rhythm',
     bpm: 75,
@@ -83,13 +83,13 @@
       { amp: 0.30, ctr: 0.62, sigma: 0.07 },   // T wave
     ],
     noise: 0.008,
-    color: '#00ff88',
+    color: '#22ff22',
   };
   var curColor = rhythm.color;
 
   /* ---------- scrolling buffer ---------- */
   var SAMPLE_RATE = 250;
-  var PX_PER_SEC = cfg.speed || 200;
+  var PX_PER_SEC = cfg.speed || 80;   // slow: ~80px/s so each beat is visible
   var bufLen = 1200;
   var ring = new Float32Array(bufLen);
   var writePos = 0;
@@ -189,12 +189,11 @@
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
-    drawLabel();
   }
 
   function drawGrid() {
     ctx.save();
-    ctx.strokeStyle = 'rgba(0, 255, 100, 0.06)';
+    ctx.strokeStyle = 'rgba(34, 255, 34, 0.08)';
     ctx.lineWidth = 1;
     var step = 16;
     for (var x = 0; x < W; x += step) {
@@ -203,7 +202,7 @@
     for (var y = 0; y < H; y += step) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(0, 255, 100, 0.12)';
+    ctx.strokeStyle = 'rgba(34, 255, 34, 0.14)';
     for (var x2 = 0; x2 < W; x2 += step * 5) {
       ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, H); ctx.stroke();
     }
